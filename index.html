@@ -1213,9 +1213,9 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                     : 'หลายแผนก';
                 // pods: [left=2nd, center=1st, right=3rd]
                 const pods = [
-                    { cx:175, pT:248, pW:148, pH:70,  rank:2, d:podiumData[1]||null, sC:'#93c5fd', sC2:'#2563eb' },
-                    { cx:360, pT:196, pW:162, pH:122, rank:1, d:podiumData[0]||null, sC:'#fca5a5', sC2:'#dc2626' },
-                    { cx:545, pT:265, pW:148, pH:53,  rank:3, d:podiumData[2]||null, sC:'#86efac', sC2:'#16a34a' }
+                    { cx:175, pT:248, pW:148, pH:70,  rank:2, d:podiumData[1]||null },
+                    { cx:360, pT:196, pW:162, pH:122, rank:1, d:podiumData[0]||null },
+                    { cx:545, pT:265, pW:148, pH:53,  rank:3, d:podiumData[2]||null }
                 ];
                 const pC={
                     1:{f:'#fcd34d',d:'#f59e0b',t:'#fefce8',lbl:'🏆 อันดับ 1'},
@@ -1224,10 +1224,10 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                 };
 
                 // Chibi character — bigger head, big eyes, spiky hair
-                const per = (cx, sY, sC, sC2, rank) => {
+                const per = (cx, sY, rank) => {
                     const hY = sY - 88;
                     const skin = '#FFD5A8';
-                    const hair = rank === 1 ? '#d97706' : '#1a0a00';
+                    const hair = '#3b2415';
 
                     let aura = '';
                     if (rank === 1) {
@@ -1236,10 +1236,13 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                             `<circle cx="${cx}" cy="${sY-44}" r="46" fill="rgba(251,191,36,0.05)" stroke="rgba(253,224,71,0.18)" stroke-width="1.5"/>`;
                     }
 
+                    const glove = (gx, gy) => `<circle cx="${gx}" cy="${gy}" r="7" fill="#94a3b8" stroke="#64748b" stroke-width="1.2"/>`;
+
                     let arms = '';
                     if(rank===1){
                         arms = `<line x1="${cx-18}" y1="${sY-63}" x2="${cx-44}" y2="${sY-104}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>` +
                                `<line x1="${cx+18}" y1="${sY-63}" x2="${cx+50}" y2="${sY-108}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>` +
+                               glove(cx-44, sY-104) +
                                `<g transform="translate(${cx+50} ${sY-122})">` +
                                `<rect x="-7" y="7" width="14" height="3" rx="1.5" fill="#f59e0b"/>` +
                                `<rect x="-5" y="10" width="10" height="4" rx="1" fill="#d97706"/>` +
@@ -1248,20 +1251,24 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                                `<line x1="7" y1="1" x2="11" y2="-1" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/></g>`;
                     } else if(rank===2){
                         arms = `<line x1="${cx-18}" y1="${sY-63}" x2="${cx-46}" y2="${sY-104}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>` +
-                               `<line x1="${cx+18}" y1="${sY-63}" x2="${cx+44}" y2="${sY-50}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>`;
+                               `<line x1="${cx+18}" y1="${sY-63}" x2="${cx+44}" y2="${sY-50}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>` +
+                               glove(cx-46, sY-104) + glove(cx+44, sY-50);
                     } else {
                         arms = `<line x1="${cx-18}" y1="${sY-63}" x2="${cx-45}" y2="${sY-98}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>` +
-                               `<line x1="${cx+18}" y1="${sY-63}" x2="${cx+45}" y2="${sY-98}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>`;
+                               `<line x1="${cx+18}" y1="${sY-63}" x2="${cx+45}" y2="${sY-98}" stroke="${skin}" stroke-width="12" stroke-linecap="round"/>` +
+                               glove(cx-45, sY-98) + glove(cx+45, sY-98);
                     }
 
                     const body =
-                        `<rect x="${cx-19}" y="${sY-70}" width="38" height="44" rx="12" fill="${sC}"/>` +
-                        `<rect x="${cx-19}" y="${sY-70}" width="38" height="15" rx="12" fill="${sC2}"/>` +
+                        `<rect x="${cx-19}" y="${sY-70}" width="38" height="44" rx="12" fill="#7dd3fc"/>` +
+                        `<rect x="${cx-19}" y="${sY-70}" width="38" height="15" rx="12" fill="#38bdf8"/>` +
+                        `<rect x="${cx-3}" y="${sY-68}" width="6" height="40" fill="#0ea5e9" opacity="0.45"/>` +
+                        `<rect x="${cx-15}" y="${sY-58}" width="9" height="8" rx="2" fill="none" stroke="#0369a1" stroke-width="1.2" opacity="0.7"/>` +
                         `<circle cx="${cx}" cy="${sY-50}" r="6" fill="rgba(255,255,255,0.28)"/>` +
-                        `<rect x="${cx-13}" y="${sY-28}" width="11" height="28" rx="5" fill="#4a5568"/>` +
-                        `<rect x="${cx+2}" y="${sY-28}" width="11" height="28" rx="5" fill="#4a5568"/>` +
-                        `<ellipse cx="${cx-8}" cy="${sY}" rx="12" ry="6" fill="#2d3748"/>` +
-                        `<ellipse cx="${cx+8}" cy="${sY}" rx="12" ry="6" fill="#2d3748"/>`;
+                        `<rect x="${cx-13}" y="${sY-28}" width="11" height="28" rx="5" fill="#0369a1"/>` +
+                        `<rect x="${cx+2}" y="${sY-28}" width="11" height="28" rx="5" fill="#0369a1"/>` +
+                        `<ellipse cx="${cx-8}" cy="${sY}" rx="12" ry="6" fill="#1e293b"/>` +
+                        `<ellipse cx="${cx+8}" cy="${sY}" rx="12" ry="6" fill="#1e293b"/>`;
 
                     let medal = '';
                     if (rank === 2) {
@@ -1280,37 +1287,25 @@ Return ONLY a valid JSON array (no markdown, no explanation):
 
                     const head = `<circle cx="${cx}" cy="${hY}" r="28" fill="${skin}" stroke="#e8a070" stroke-width="1.5"/>`;
 
-                    let hairSvg = '';
-                    if (rank === 1) {
-                        hairSvg =
-                            `<path d="M ${cx-28},${hY+2} Q ${cx-30},${hY-38} ${cx},${hY-50} Q ${cx+30},${hY-38} ${cx+28},${hY+2} Z" fill="${hair}"/>` +
-                            `<path d="M ${cx-8},${hY-48} C ${cx-14},${hY-74} ${cx+16},${hY-76} ${cx+8},${hY-50}" fill="${hair}"/>` +
-                            `<path d="M ${cx-22},${hY-36} C ${cx-32},${hY-66} ${cx-10},${hY-70} ${cx-4},${hY-52}" fill="${hair}"/>` +
-                            `<path d="M ${cx+22},${hY-36} C ${cx+32},${hY-66} ${cx+10},${hY-70} ${cx+4},${hY-52}" fill="${hair}"/>` +
-                            `<path d="M ${cx-28},${hY-8} C ${cx-42},${hY-30} ${cx-36},${hY-50} ${cx-20},${hY-44}" fill="${hair}"/>` +
-                            `<path d="M ${cx-5},${hY-54} C ${cx-2},${hY-66} ${cx+8},${hY-68} ${cx+10},${hY-54}" fill="rgba(255,255,255,0.22)" stroke="none"/>`;
-                    } else {
-                        hairSvg =
-                            `<path d="M ${cx-28},${hY+2} Q ${cx-30},${hY-38} ${cx},${hY-50} Q ${cx+30},${hY-38} ${cx+28},${hY+2} Z" fill="${hair}"/>` +
-                            `<path d="M ${cx-8},${hY-48} C ${cx-12},${hY-68} ${cx+12},${hY-68} ${cx+8},${hY-48}" fill="${hair}"/>` +
-                            `<path d="M ${cx-18},${hY-38} C ${cx-26},${hY-56} ${cx-14},${hY-60} ${cx-8},${hY-46}" fill="${hair}"/>` +
-                            `<path d="M ${cx+18},${hY-38} C ${cx+26},${hY-56} ${cx+14},${hY-60} ${cx+8},${hY-46}" fill="${hair}"/>` +
-                            `<path d="M ${cx-28},${hY-6} C ${cx-38},${hY-28} ${cx-32},${hY-44} ${cx-22},${hY-40}" fill="${hair}"/>`;
-                    }
+                    // Hard hat — same style/color for every rank (real PPE, not a costume)
+                    const hatBrimY = hY - 24;
+                    const hardHat =
+                        `<path d="M ${cx-26},${hatBrimY} Q ${cx-28},${hatBrimY-22} ${cx},${hatBrimY-26} Q ${cx+28},${hatBrimY-22} ${cx+26},${hatBrimY} Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>` +
+                        `<rect x="${cx-31}" y="${hatBrimY-3}" width="62" height="7" rx="3.5" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>` +
+                        `<rect x="${cx-2.5}" y="${hatBrimY-24}" width="5" height="20" rx="2" fill="#e2e8f0"/>`;
 
-                    let crown = '';
+                    // Safety goggles, pushed up to rest on the hard hat brim
+                    const goggles =
+                        `<rect x="${cx-16}" y="${hatBrimY-2}" width="32" height="9" rx="4.5" fill="rgba(148,163,184,0.4)" stroke="#64748b" stroke-width="1.3"/>` +
+                        `<rect x="${cx-14}" y="${hatBrimY+0.5}" width="12" height="5" rx="2" fill="rgba(226,232,240,0.6)"/>` +
+                        `<rect x="${cx+2}" y="${hatBrimY+0.5}" width="12" height="5" rx="2" fill="rgba(226,232,240,0.6)"/>`;
+
+                    // Gold star badge on the champion's hard hat (replaces the old crown — a crown doesn't sit on a hard hat)
+                    let hatBadge = '';
                     if (rank === 1) {
-                        const cB = hY - 26;
-                        crown =
-                            `<path d="M ${cx-15},${cB} L ${cx-19},${cB-18} L ${cx-7},${cB-10} L ${cx},${cB-26} L ${cx+7},${cB-10} L ${cx+19},${cB-18} L ${cx+15},${cB} Z" fill="#fbbf24" stroke="#d97706" stroke-width="1.5"/>` +
-                            `<rect x="${cx-15}" y="${cB-9}" width="30" height="10" rx="2" fill="#f59e0b" stroke="#d97706" stroke-width="1"/>` +
-                            `<circle cx="${cx}" cy="${cB-25}" r="5" fill="#f87171" stroke="#ef4444" stroke-width="1.2"/>` +
-                            `<circle cx="${cx-15}" cy="${cB-17}" r="3.5" fill="#60a5fa" stroke="#3b82f6" stroke-width="1"/>` +
-                            `<circle cx="${cx+15}" cy="${cB-17}" r="3.5" fill="#60a5fa" stroke="#3b82f6" stroke-width="1"/>` +
-                            `<circle cx="${cx-7}" cy="${cB-3}" r="2" fill="#fcd34d"/>` +
-                            `<circle cx="${cx}" cy="${cB-3}" r="2" fill="#fcd34d"/>` +
-                            `<circle cx="${cx+7}" cy="${cB-3}" r="2" fill="#fcd34d"/>` +
-                            `<line x1="${cx-12}" y1="${cB-4}" x2="${cx-9}" y2="${cB-12}" stroke="rgba(255,255,255,0.75)" stroke-width="2" stroke-linecap="round"/>`;
+                        hatBadge =
+                            `<circle cx="${cx}" cy="${hatBrimY-14}" r="6" fill="#fbbf24" stroke="#d97706" stroke-width="1.3"/>` +
+                            `<text x="${cx}" y="${hatBrimY-11.5}" text-anchor="middle" font-size="8" fill="#92400e">★</text>`;
                     }
 
                     let face = '';
@@ -1357,7 +1352,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                             `<text x="${cx+50}" y="${hY-28}" text-anchor="middle" font-size="9" fill="#fcd34d">✦</text>`;
                     }
 
-                    return aura + arms + body + medal + head + hairSvg + face + crown + stars;
+                    return aura + arms + body + medal + head + face + hardHat + goggles + hatBadge + stars;
                 };
 
                 const pod = ({cx,pT,pW,pH,rank,d}) => {
@@ -1426,7 +1421,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                     sparkleSvg + confSvg + banner +
                     `<line x1="20" y1="${FL}" x2="${W-20}" y2="${FL}" stroke="rgba(167,139,250,0.25)" stroke-width="1.5"/>` +
                     ord.map(p=>pod(p)).join('') +
-                    ord.map(p=>p.d?per(p.cx,p.pT,p.sC,p.sC2,p.rank):'').join('') +
+                    ord.map(p=>p.d?per(p.cx,p.pT,p.rank):'').join('') +
                     pods.map(p=>npl(p)).join('') +
                     `</svg>`;
             }

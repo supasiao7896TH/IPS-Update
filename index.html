@@ -1413,16 +1413,21 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                                 `<text x="${cx}" y="${midY+3}" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="9.5" font-family="Arial,sans-serif">เรื่อง YTD</text>` +
                                 `<line x1="${x+20}" y1="${midY+10}" x2="${x+pW-20}" y2="${midY+10}" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>`;
                         } else {
-                            // same "เรื่อง YTD" unit label as the 1st-place block, always shown (not just
-                            // when there happens to be room). Anchored a fixed distance above the shared
-                            // rank-label baseline (lblY) — rather than a fixed distance below the podium
-                            // top (pT) — so it never collides with the rank label even on the shortest pod
-                            const subY = lblY - 12;
-                            const sY   = subY - 13;
-                            const sFs  = pH >= 65 ? 21 : 18;
+                            // sY is anchored to pT (podium top), not lblY — the character's feet are
+                            // drawn at cy=pT with ry=6, dipping into the box, so the score number must
+                            // stay clear of pT+~20 or the character (composited on top) steps on it.
+                            // Same "เรื่อง YTD" unit label as the 1st-place block, always shown; on the
+                            // shortest pod (tight === true) there's little room between the feet and the
+                            // rank label below, so the sub-label uses a smaller font/gap to still fit.
+                            const sY   = Math.max(pT + 22, lblY - 32);
+                            const tight = (lblY - sY) < 26;
+                            const sFs   = pH >= 65 ? 21 : 18;
+                            const subFs = tight ? 7.5 : 8.5;
+                            const gap   = tight ? 9 : 12;
+                            const subY  = sY + gap;
                             scoreHtml =
                                 `<text x="${cx}" y="${sY}" text-anchor="middle" fill="white" font-size="${sFs}" font-weight="900" font-family="Arial,sans-serif">${d.ytd}</text>` +
-                                `<text x="${cx}" y="${subY}" text-anchor="middle" fill="rgba(255,255,255,0.82)" font-size="8.5" font-family="Arial,sans-serif">เรื่อง YTD</text>`;
+                                `<text x="${cx}" y="${subY}" text-anchor="middle" fill="rgba(255,255,255,0.82)" font-size="${subFs}" font-family="Arial,sans-serif">เรื่อง YTD</text>`;
                         }
                     }
                     const lblHtml = `<text x="${cx}" y="${lblY}" text-anchor="middle" fill="rgba(255,255,255,0.95)" font-size="9.5" font-weight="700" letter-spacing="0.5" font-family="Arial,sans-serif">${c.lbl}</text>`;

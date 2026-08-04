@@ -1236,16 +1236,33 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                             `<circle cx="${cx}" cy="${sY-44}" r="46" fill="rgba(251,191,36,0.05)" stroke="rgba(253,224,71,0.18)" stroke-width="1.5"/>`;
                     }
 
-                    // Open hand, palm + fanned fingers — no held props, just a raised bare hand
+                    // Open hand, palm + 4 fanned fingers + thumb — no held props, just a raised bare hand.
+                    // dirX = -1 for the left hand, 1 for the right hand (always attached consistently
+                    // per side across all three ranks), used to fan the fingers and to point the thumb
+                    // inward toward the body rather than outward.
                     const hand = (hx, hy, dirX) => {
-                        dirX = dirX || 0; // -1 hand tilts left, 1 tilts right, 0 straight up
-                        const fx = i => hx + dirX*4 + (i-1.5)*4.2;
-                        const fy = i => hy - 9 - Math.abs(i-1.5)*1.5;
+                        dirX = dirX || 1;
+                        const palm = `<ellipse cx="${hx}" cy="${hy}" rx="7.5" ry="8.5" fill="${skin}" stroke="#e8a070" stroke-width="1.2"/>`;
+
+                        const fingerBaseX = i => hx + dirX*2.5 + (i-1.5)*4.6;
+                        const fingerBaseY = i => hy - 6 - Math.abs(i-1.5)*0.8;
+                        const fingerAngle = i => dirX*12 + (i-1.5)*15;
+                        const fingerLen   = i => 10.5 - Math.abs(i-1.5)*1.3;
                         let fingers = '';
                         for (let i=0; i<4; i++) {
-                            fingers += `<line x1="${hx+dirX*1.5}" y1="${hy-3}" x2="${fx(i)}" y2="${fy(i)}" stroke="${skin}" stroke-width="3" stroke-linecap="round"/>`;
+                            const len = fingerLen(i);
+                            fingers += `<g transform="translate(${fingerBaseX(i)},${fingerBaseY(i)}) rotate(${fingerAngle(i)})">` +
+                                `<rect x="-1.7" y="${-len}" width="3.4" height="${len}" rx="1.7" fill="${skin}" stroke="#e8a070" stroke-width="0.8"/>` +
+                                `</g>`;
                         }
-                        return `<circle cx="${hx}" cy="${hy}" r="6.5" fill="${skin}" stroke="#e8a070" stroke-width="1"/>` + fingers;
+
+                        const thumbAngle = -dirX*112;
+                        const thumbX = hx - dirX*3.5, thumbY = hy + 1.5;
+                        const thumb = `<g transform="translate(${thumbX},${thumbY}) rotate(${thumbAngle})">` +
+                            `<rect x="-2" y="-7.5" width="4" height="7.5" rx="2" fill="${skin}" stroke="#e8a070" stroke-width="0.8"/>` +
+                            `</g>`;
+
+                        return palm + fingers + thumb;
                     };
 
                     let arms = '';

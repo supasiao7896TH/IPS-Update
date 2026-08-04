@@ -1361,10 +1361,14 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                     let scoreHtml = '';
                     if (d) {
                         if (pH >= 100) {
+                            // center the score block within the available space between the podium
+                            // top and the shared rank-label baseline (lblY), instead of hugging the
+                            // top edge — otherwise a tall 1st-place block leaves a big dead gap above the label
+                            const midY = (pT + lblY) / 2;
                             scoreHtml =
-                                `<text x="${cx}" y="${pT+30}" text-anchor="middle" fill="white" font-size="24" font-weight="900" font-family="Arial,sans-serif">${d.ytd}</text>` +
-                                `<text x="${cx}" y="${pT+44}" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="9.5" font-family="Arial,sans-serif">เรื่อง สะสม YTD</text>` +
-                                `<line x1="${x+20}" y1="${pT+51}" x2="${x+pW-20}" y2="${pT+51}" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>`;
+                                `<text x="${cx}" y="${midY-11}" text-anchor="middle" fill="white" font-size="24" font-weight="900" font-family="Arial,sans-serif">${d.ytd}</text>` +
+                                `<text x="${cx}" y="${midY+3}" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="9.5" font-family="Arial,sans-serif">เรื่อง สะสม YTD</text>` +
+                                `<line x1="${x+20}" y1="${midY+10}" x2="${x+pW-20}" y2="${midY+10}" stroke="rgba(255,255,255,0.35)" stroke-width="1"/>`;
                         } else {
                             const sY = Math.max(pT + 22, lblY - 32);
                             const sFs = pH >= 65 ? 21 : 18;
@@ -1385,7 +1389,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
 
                 const npl = ({cx,pT,rank,d}) => {
                     if(!d) return '';
-                    const ny = pT - (rank === 1 ? 165 : 148);
+                    const ny = pT - (rank === 1 ? 165 : 185);
                     const isChamp = rank === 1;
                     return `<rect x="${cx-71}" y="${ny+3}" width="144" height="30" rx="8" fill="${isChamp ? 'rgba(253,224,71,0.25)' : 'rgba(180,160,220,0.18)'}"/>` +
                            `<rect x="${cx-72}" y="${ny}" width="144" height="30" rx="${isChamp ? 10 : 8}" fill="rgba(255,255,255,0.96)" stroke="${isChamp ? '#f59e0b' : 'none'}" stroke-width="${isChamp ? 1.5 : 0}"/>` +

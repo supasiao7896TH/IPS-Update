@@ -1132,7 +1132,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
 
                 return `<!DOCTYPE html><html lang="th">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>สรุป Kaizen ${esc(mName)} ${year}</title></head>
+<title>สรุป Kaizen ${esc(mName)} ${year}<\/title><\/head>
 <body style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f2f5;">
   <tr><td align="center" style="padding:24px 16px;">
@@ -1189,7 +1189,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
     </table>
   </td></tr>
 </table>
-</body></html>`;
+<\/body><\/html>`;
             }
 
 
@@ -1632,7 +1632,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>รายงาน Kaizen ${esc(mName)} ${year}</title>
+<title>รายงาน Kaizen ${esc(mName)} ${year}<\/title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1645,7 +1645,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
     @page{size:A4 portrait;margin:0;}
   }
 </style>
-</head>
+<\/head>
 <body>
 <div class="page">
 
@@ -1723,7 +1723,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
   </div>
 
 </div>
-</body></html>`;
+<\/body><\/html>`;
             }
 
             // ── Email Banner (900px horizontal) ────────────────────────────
@@ -1905,14 +1905,14 @@ ${topSection}${bottomSection}
                 return `<!DOCTYPE html><html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Email Banner - Kaizen ${escHtml(mName)} ${year}</title>
+<title>Email Banner - Kaizen ${escHtml(mName)} ${year}<\/title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>*{box-sizing:border-box;margin:0;padding:0;}body{background:white;display:flex;justify-content:center;padding:0;font-family:'Sarabun',Arial,sans-serif;color:#1e293b;}</style>
-</head>
+<\/head>
 <body>
 ${content}
-</body></html>`;
+<\/body><\/html>`;
             }
 
             return {

@@ -58,8 +58,11 @@ activities = { id, employeeId, year, month, count }   // id เป็น synthet
    ก่อนแทรกลงใน template literal ที่จะกลายเป็น HTML — `escHtml` เป็น top-level function ใช้ร่วมกันทุก module
 2. **Helper ที่ใช้ร่วมกัน ห้ามเขียนซ้ำ** (อยู่ใน `UI_RENDERER`):
    - `UI_RENDERER.buildStats(year, month)` — คำนวณสถิติต่อพนักงาน (ใช้ใน email summary, email HTML, PDF report, email banner)
-   - `UI_RENDERER.makePodiumSvg(stats)` — สร้าง podium SVG (ใช้ใน PDF report และ email banner)
-   ถ้าต้องการฟีเจอร์ใหม่ที่ใช้สถิติพนักงานหรือ podium ให้เรียกใช้ helper เหล่านี้แทนการคำนวณเอง
+   - `UI_RENDERER.makePodiumSvg(stats)` — สร้าง podium SVG อันดับ YTD (ใช้ใน PDF report และ email banner) — ปรับให้ดู
+     เป็นทางการแล้ว (ไม่มี SMIL animation, confetti น้อยลง, label ภาษาไทย) เพราะ output จริงเป็นภาพนิ่งเสมอ (พิมพ์/capture)
+   - `UI_RENDERER.makeMonthlyBarChartSvg(activities, year, month)` — กราฟแท่ง SVG ยอดรวมรายเดือน (ใช้คู่กับ podium
+     ใน PDF report และ email banner) สร้างเองล้วนๆ ไม่พึ่ง Chart.js เพื่อความน่าเชื่อถือตอน print/capture
+   ถ้าต้องการฟีเจอร์ใหม่ที่ใช้สถิติพนักงาน/podium/กราฟรายเดือน ให้เรียกใช้ helper เหล่านี้แทนการคำนวณเอง
 3. **Modal system**: ใช้ `UI_RENDERER.showModal({title, body, actions}, trigger)` และ
    `UI_RENDERER.closeModal(trigger)` — มี focus trap และ ARIA attributes ในตัวอยู่แล้ว
    ถ้า modal ผูก event listener ระดับ `document` (เช่น paste event) ต้อง cleanup ผ่าน `el._onClose`

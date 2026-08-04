@@ -15,8 +15,10 @@
 - **จัดการข้อมูล** — เพิ่ม/แก้ไข/ลบพนักงานและแผนก, import/export ข้อมูลเป็น JSON, export ทั้งแอปเป็นไฟล์ HTML เดี่ยว (พร้อมข้อมูลฝังในตัว)
 - **นำเข้าข้อมูลจากภาพ (OCR)** — ใช้ Gemini Vision API อ่านตารางจากภาพ screenshot แล้วจับคู่ชื่อพนักงานอัตโนมัติ (รวม fuzzy matching)
 - **สร้างสรุปอีเมล** — ทั้งแบบ plain text และ HTML พร้อม preview ในหน้าเว็บ
-- **ส่งออกรายงาน PDF** — เรนเดอร์ report เต็มรูปแบบ (KPI, podium SVG, ตารางรายแผนก, การ์ดให้กำลังใจ) แล้วสั่งพิมพ์/บันทึกเป็น PDF
-- **ส่งออก Email Banner** — banner ขนาด 900px สำหรับแปะในอีเมล แยกได้เป็นส่วนบน (KPI+podium) และส่วนล่าง (ตาราง+กำลังใจ) เพื่อ screenshot คมชัด
+- **ส่งออกรายงาน PDF** — เรนเดอร์ report เต็มรูปแบบ (KPI, podium SVG อันดับ YTD, กราฟแท่งยอดรวมรายเดือน, ตารางรายแผนก, การ์ดให้กำลังใจ) แล้วสั่งพิมพ์/บันทึกเป็น PDF
+- **ส่งออก Email Banner** — banner ขนาด 900px รวมส่วนบน (KPI+podium) และส่วนล่าง (ตาราง+กำลังใจ) เป็นภาพเดียว
+  กดปุ่ม "คัดลอกรูปภาพ" ครั้งเดียวก็คัดลอกเข้า clipboard พร้อมวาง (Ctrl+V) ในอีเมลได้ทันที ไม่ต้อง screenshot เอง
+  (ใช้ `html-to-image` capture ฝั่ง client — ถ้า clipboard API ใช้ไม่ได้จะ fallback ดาวน์โหลดไฟล์ PNG แทนอัตโนมัติ)
 
 ## Tech stack
 
@@ -25,6 +27,7 @@
 - Tailwind CSS ผ่าน CDN (pin เวอร์ชัน 3.4.16)
 - Chart.js ผ่าน CDN (pin เวอร์ชัน 4.4.7)
 - Lucide Icons ผ่าน CDN (pin เวอร์ชัน 1.28.0), Google Fonts — Noto Sans Thai (ฟอนต์ไทย body) + Fraunces (หัวข้อหลัก)
+- html-to-image ผ่าน CDN (pin เวอร์ชัน 1.11.13) — capture Email Banner เป็นรูปภาพฝั่ง client สำหรับคัดลอกเข้า clipboard
 - เก็บข้อมูลใน **IndexedDB** ของเบราว์เซอร์ (`kaizen_tracker_db`) — ย้ายจาก localStorage อัตโนมัติครั้งเดียว
   (ไม่มี backend/database ภายนอก)
 - Gemini API key เข้ารหัสด้วย Web Crypto AES-GCM 256-bit ก่อนเก็บ (ไม่ใช่ plaintext เหมือนเดิม)

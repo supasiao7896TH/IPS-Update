@@ -58,8 +58,11 @@ activities = { id, employeeId, year, month, count }   // id เป็น synthet
    ก่อนแทรกลงใน template literal ที่จะกลายเป็น HTML — `escHtml` เป็น top-level function ใช้ร่วมกันทุก module
 2. **Helper ที่ใช้ร่วมกัน ห้ามเขียนซ้ำ** (อยู่ใน `UI_RENDERER`):
    - `UI_RENDERER.buildStats(year, month)` — คำนวณสถิติต่อพนักงาน (ใช้ใน email summary, email HTML, PDF report, email banner)
-   - `UI_RENDERER.makePodiumSvg(stats)` — สร้าง podium SVG (ใช้ใน PDF report และ email banner)
-   ถ้าต้องการฟีเจอร์ใหม่ที่ใช้สถิติพนักงานหรือ podium ให้เรียกใช้ helper เหล่านี้แทนการคำนวณเอง
+   - `UI_RENDERER.makePodiumSvg(stats)` — สร้าง podium SVG อันดับ YTD (ใช้ใน PDF report และ email banner) — ปรับให้ดู
+     เป็นทางการแล้ว (ไม่มี SMIL animation, confetti น้อยลง, label ภาษาไทย) เพราะ output จริงเป็นภาพนิ่งเสมอ (พิมพ์/capture)
+   - `UI_RENDERER.makeMonthlyBarChartSvg(activities, year, month)` — กราฟแท่ง SVG ยอดรวมรายเดือน (ใช้คู่กับ podium
+     ใน PDF report และ email banner) สร้างเองล้วนๆ ไม่พึ่ง Chart.js เพื่อความน่าเชื่อถือตอน print/capture
+   ถ้าต้องการฟีเจอร์ใหม่ที่ใช้สถิติพนักงาน/podium/กราฟรายเดือน ให้เรียกใช้ helper เหล่านี้แทนการคำนวณเอง
 3. **Modal system**: ใช้ `UI_RENDERER.showModal({title, body, actions}, trigger)` และ
    `UI_RENDERER.closeModal(trigger)` — มี focus trap และ ARIA attributes ในตัวอยู่แล้ว
    ถ้า modal ผูก event listener ระดับ `document` (เช่น paste event) ต้อง cleanup ผ่าน `el._onClose`
@@ -71,19 +74,26 @@ activities = { id, employeeId, year, month, count }   // id เป็น synthet
 5. **CRUD ต้องผ่าน `STATE_STORE.optimisticUpdate(key, next, persistFn)`**: set state ทันที (optimistic) → persist ไป
    IndexedDB → rollback state + แจ้ง error toast อัตโนมัติถ้า persist ล้มเหลว — ห้าม mutate array ใน state แบบ in-place
    ต้อง clone ก่อนเสมอ (`[...arr]`) ไม่งั้น rollback จะ no-op เพราะ `prev` อ้างอิง object เดียวกับที่ถูก mutate ไปแล้ว
-6. **CDN dependencies pin เวอร์ชันแล้ว**: Tailwind `3.4.16`, Chart.js `4.4.7`, Lucide `1.28.0`
+6. **CDN dependencies pin เวอร์ชันแล้ว**: Tailwind `3.4.16`, Chart.js `4.4.7`, Lucide `1.28.0`, html-to-image `1.11.13`
    — อย่าเปลี่ยนกลับไปใช้ URL แบบไม่ระบุเวอร์ชัน (`@latest` หรือไม่มี version เลย)
 7. **ไอคอน**: ใช้ Lucide (`data-lucide="icon-name"`) ไม่ใช่ Font Awesome แล้ว — ทุกฟังก์ชันที่ inject `data-lucide`
    markup ผ่าน innerHTML ต้องเรียก `lucide.createIcons()` ต่อท้ายเสมอ (Lucide inject SVG เฉพาะ element ที่มีอยู่ตอนเรียก
    ไม่ใช่ CSS class font แบบ Font Awesome) — ยกเว้น 5 generator ฟังก์ชันใน `UI_RENDERER`
-   (generateEmailSummary/generateEmailHtml/makePodiumSvg/generateReportHtml/generateEmailBannerHtml) ที่ไม่ใช้ไอคอนเลย
+   (generateEmailSummary/generateEmailHtml/makePodiumSvg/generateReportHtml/generateEmailBannerContent) ที่ไม่ใช้ไอคอนเลย
    เพราะ output เปิดแยกนอก live DOM (standalone/print/screenshot) — lucide.createIcons() ไม่ทำงานที่นั่น
-8. **ฟอนต์**: Noto Sans Thai (body ทั้งแอป) + Fraunces (เฉพาะ `#main-header-title`) — Sarabun ยังอยู่เฉพาะใน
-   เอกสาร PDF/email/banner ที่ generate แยก (standalone documents สำหรับพิมพ์/ส่งอีเมล) อย่าเปลี่ยนอันนั้น
-9. **Firebase scaffold ปิดอยู่**: `APP_CONFIG.features.cloudSyncEnabled`/`authEnabled` เป็น `false` ทั้งคู่ — ห้าม
-   เปิดหรือเพิ่ม Firebase SDK จนกว่าผู้ใช้จะขอชัดเจน (เตรียม interface ไว้แล้วใน `CLOUD_SYNC_MANAGER`/`AUTH_PROVIDER`)
-10. **UI ภาษาไทยทั้งหมด** — ข้อความใหม่ที่เพิ่มต้องเป็นภาษาไทย ให้โทนเดียวกับข้อความที่มีอยู่
-11. **Chart.js เป็น optional**: `renderDashboardChart()` เช็ค `typeof Chart === 'undefined'` แล้ว skip
+   — `UI_RENDERER.showModal`'s ปุ่ม action รองรับ icon ได้แล้วผ่าน `{ id, text, icon, classes }` (`icon` เป็น optional
+   Lucide icon name, ไม่ใส่ก็ได้เหมือนเดิม)
+8. **Email Banner ใช้ `html-to-image` (pin `1.11.13`) capture รูปภาพฝั่ง client**: `APP_CORE.handleCopyBannerImage`
+   render `UI_RENDERER.generateEmailBannerContent(...)` ลง hidden div ใน document หลัก (ไม่ใช่ iframe — font/style
+   resolution ข้าม iframe ไม่เสถียร) แล้ว `htmlToImage.toBlob()` → copy เข้า clipboard ด้วย
+   `navigator.clipboard.write([new ClipboardItem({'image/png': blob})])` — ถ้า clipboard API ใช้ไม่ได้ (เช่น
+   secure-context ไม่ผ่าน) จะ fallback เป็นดาวน์โหลดไฟล์ PNG แทนเสมอ ไม่ปล่อยให้ fail แบบเงียบ ๆ
+9. **ฟอนต์**: Noto Sans Thai (body ทั้งแอป) + Fraunces (เฉพาะ `#main-header-title`) — Sarabun ยังอยู่ใน head หลัก
+   (สำหรับ Email Banner capture div) และในเอกสาร PDF/email/banner ที่ generate แยก อย่าเปลี่ยนอันนั้น
+10. **Firebase scaffold ปิดอยู่**: `APP_CONFIG.features.cloudSyncEnabled`/`authEnabled` เป็น `false` ทั้งคู่ — ห้าม
+    เปิดหรือเพิ่ม Firebase SDK จนกว่าผู้ใช้จะขอชัดเจน (เตรียม interface ไว้แล้วใน `CLOUD_SYNC_MANAGER`/`AUTH_PROVIDER`)
+11. **UI ภาษาไทยทั้งหมด** — ข้อความใหม่ที่เพิ่มต้องเป็นภาษาไทย ให้โทนเดียวกับข้อความที่มีอยู่
+12. **Chart.js เป็น optional**: `renderDashboardChart()` เช็ค `typeof Chart === 'undefined'` แล้ว skip
     กราฟถ้าโหลด CDN ไม่สำเร็จ เพื่อไม่ให้ทั้งแอปพังจาก dependency เดียว — รักษา pattern นี้ไว้ถ้าเพิ่ม CDN ใหม่
 
 ## วิธีทดสอบการเปลี่ยนแปลง

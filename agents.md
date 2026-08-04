@@ -60,6 +60,8 @@ activities = { id, employeeId, year, month, count }   // id เป็น synthet
    - `UI_RENDERER.buildStats(year, month)` — คำนวณสถิติต่อพนักงาน (ใช้ใน email summary, email HTML, PDF report, email banner)
    - `UI_RENDERER.makePodiumSvg(stats)` — สร้าง podium SVG อันดับ YTD (ใช้ใน PDF report และ email banner) — ปรับให้ดู
      เป็นทางการแล้ว (ไม่มี SMIL animation, confetti น้อยลง, label ภาษาไทย) เพราะ output จริงเป็นภาพนิ่งเสมอ (พิมพ์/capture)
+     ตัวการ์ตูนแต่งกายแบบพนักงานฝ่ายผลิตจริง (หมวกเซฟตี้ขาว, ชุดหมีฟ้าอ่อน, แว่นเซฟตี้, ถุงมือ — สีเดียวกันทุกอันดับ)
+     การแบ่งอันดับสื่อผ่าน podium/medal/ท่าทาง/ป้ายชื่อ ไม่ใช่สีชุด — ถ้าจะปรับตัวการ์ตูนเพิ่ม ให้คงชุด PPE นี้ไว้เป็นค่าเริ่มต้น
    - `UI_RENDERER.makeMonthlyBarChartSvg(activities, year, month)` — กราฟแท่ง SVG ยอดรวมรายเดือน (ใช้คู่กับ podium
      ใน PDF report และ email banner) สร้างเองล้วนๆ ไม่พึ่ง Chart.js เพื่อความน่าเชื่อถือตอน print/capture
    ถ้าต้องการฟีเจอร์ใหม่ที่ใช้สถิติพนักงาน/podium/กราฟรายเดือน ให้เรียกใช้ helper เหล่านี้แทนการคำนวณเอง

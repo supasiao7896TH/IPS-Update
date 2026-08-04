@@ -7,9 +7,10 @@
     <script src="https://cdn.tailwindcss.com/3.4.16"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600&family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@1.28.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js"></script>
     <style>
         body { font-family: 'Noto Sans Thai', sans-serif; background-color: #f0f2f5; }
         #main-header-title { font-family: 'Fraunces', serif; }
@@ -942,7 +943,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                             </div>
                             <div class="p-6">${body}</div>
                             <div class="flex justify-end gap-3 p-5 bg-gray-50 rounded-b-2xl">
-                                ${actions.map(a=>`<button class="${a.classes} font-bold py-2 px-5 rounded-lg transition-transform transform hover:scale-105" data-action="${escHtml(a.id)}">${escHtml(a.text)}</button>`).join('')}
+                                ${actions.map(a=>`<button class="${a.classes} font-bold py-2 px-5 rounded-lg transition-transform transform hover:scale-105" data-action="${escHtml(a.id)}">${a.icon?`<i data-lucide="${escHtml(a.icon)}" class="mr-1.5 inline-block" style="width:1rem;height:1rem;vertical-align:-2px;" aria-hidden="true"></i>`:''}${escHtml(a.text)}</button>`).join('')}
                             </div>
                         </div>
                     </div>`;
@@ -1641,10 +1642,9 @@ Return ONLY a valid JSON array (no markdown, no explanation):
             }
 
             // ── Email Banner (900px horizontal) ────────────────────────────
-            function generateEmailBannerHtml(year, month, title, author, part) {
+            function generateEmailBannerContent(year, month, title, author) {
                 title  = title  || 'รายงานสรุปกิจกรรม Kaizen';
                 author = author || 'ระบบ Kaizen Activity Tracker';
-                part   = part   || 'full';
                 const sections  = STATE_STORE.get('sections');
                 const employees = STATE_STORE.get('employees');
                 const mName = APP_CONFIG.fullMonthNames[month - 1];
@@ -1730,10 +1730,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
                         <div style="flex:1;height:1.5px;background:#cbd5e1;"></div>
                     </div>`;
 
-                const showTop    = part !== 'bottom';
-                const showBottom = part !== 'top';
-
-                const topSection = !showTop ? '' : `
+                const topSection = `
   <!-- HEADER -->
   <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 55%,#2563eb 100%);padding:13px 22px;display:flex;justify-content:space-between;align-items:center;">
     <div>
@@ -1776,7 +1773,7 @@ Return ONLY a valid JSON array (no markdown, no explanation):
     </div>
   </div>`;
 
-                const bottomSection = !showBottom ? '' : `
+                const bottomSection = `
   <!-- TABLES — FULL WIDTH, 2 COLUMNS -->
   <div style="padding:8px 16px 4px;">
     ${sectionLabel('📋 รายละเอียดรายบุคคล')}
@@ -1802,25 +1799,32 @@ Return ONLY a valid JSON array (no markdown, no explanation):
     <span style="font-size:10px;color:#64748b;font-weight:500;">เดือน${esc(mName)} ${year} &nbsp;|&nbsp; ${today}</span>
   </div>`;
 
+                return `<div style="width:900px;background:white;overflow:hidden;font-family:'Sarabun',Arial,sans-serif;color:#1e293b;">
+${topSection}${bottomSection}
+</div>`;
+            }
+
+            function generateEmailBannerHtml(year, month, title, author) {
+                const mName = APP_CONFIG.fullMonthNames[month - 1];
+                const content = generateEmailBannerContent(year, month, title, author);
                 return `<!DOCTYPE html><html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>Email Banner - Kaizen ${esc(mName)} ${year}</title>
+<title>Email Banner - Kaizen ${escHtml(mName)} ${year}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>*{box-sizing:border-box;margin:0;padding:0;}body{background:white;display:flex;justify-content:center;padding:0;font-family:'Sarabun',Arial,sans-serif;color:#1e293b;}</style>
 </head>
 <body>
-<div style="width:900px;background:white;overflow:hidden;${part!=='full'?'zoom:2;':''}">
-${topSection}${bottomSection}
-</div>
+${content}
 </body></html>`;
             }
 
             return {
                 setDom, renderAll, populateAllDropdowns, renderReportTable, renderTopPerformers,
                 renderDashboardChart, showNotification, showModal, closeModal, buildStats,
-                generateEmailSummary, generateEmailHtml, makePodiumSvg, generateReportHtml, generateEmailBannerHtml,
+                generateEmailSummary, generateEmailHtml, makePodiumSvg, generateReportHtml,
+                generateEmailBannerHtml, generateEmailBannerContent,
             };
         })();
 
@@ -1829,6 +1833,7 @@ ${topSection}${bottomSection}
         const APP_CORE = (() => {
             'use strict';
             let _domCache = null;
+            let _bannerCaptureEl = null;
 
             function _consumeInjectedData() {
                 const inj = document.getElementById('data-injector');
@@ -2581,12 +2586,11 @@ ${topSection}${bottomSection}
                         <div class="border rounded-xl overflow-hidden shadow-inner bg-gray-200" style="height:460px;">
                             <iframe id="eb-frame" class="w-full h-full border-0" title="ตัวอย่าง Email Banner" sandbox="allow-same-origin" style="transform-origin:top left;"></iframe>
                         </div>
-                        <p class="text-xs text-center text-gray-500 font-medium">📸 เปิดส่วนที่ต้องการ → Screenshot → วางใน Email (แยก 2 ส่วนเพื่อภาพคมชัด)</p>
+                        <p class="text-xs text-center text-gray-500 font-medium">📋 กด "คัดลอกรูปภาพ" แล้ววาง (Ctrl+V) ลงในอีเมลได้ทันที ไม่ต้อง Screenshot เอง</p>
                     </div>`,
                     actions: [
-                        { id:'cancel',     text:'ปิด',                              classes:'bg-gray-200 text-gray-800 hover:bg-gray-300' },
-                        { id:'open-top',   text:'📸 ส่วนบน (KPI + Podium)',         classes:'bg-violet-600 text-white hover:bg-violet-700' },
-                        { id:'open-bottom',text:'📸 ส่วนล่าง (ตาราง + กำลังใจ)',   classes:'bg-emerald-600 text-white hover:bg-emerald-700' }
+                        { id:'cancel',     text:'ปิด',              classes:'bg-gray-200 text-gray-800 hover:bg-gray-300' },
+                        { id:'copy-image', text:'คัดลอกรูปภาพ', icon:'copy', classes:'bg-emerald-600 text-white hover:bg-emerald-700' }
                     ]
                 }, trigger);
 
@@ -2618,21 +2622,81 @@ ${topSection}${bottomSection}
                     if (a==='cancel'||e.target.classList.contains('modal-close-btn')) {
                         UI_RENDERER.closeModal(trigger); return;
                     }
-                    if (a==='open-top' || a==='open-bottom') {
+                    if (a==='copy-image') {
                         const authorVal = modal.querySelector('#eb-author').value.trim();
                         if (authorVal) STORAGE_ENGINE.saveReportAuthor(authorVal).catch(err=>DEBUG_MODULE.log('error','STORAGE',err));
                         const y      = parseInt(modal.querySelector('#eb-year').value,  10);
                         const m      = parseInt(modal.querySelector('#eb-month').value, 10);
                         const title  = modal.querySelector('#eb-title').value.trim()  || 'รายงานสรุปกิจกรรม Kaizen';
                         const author = authorVal || 'ระบบ Kaizen Activity Tracker';
-                        const part   = a === 'open-top' ? 'top' : 'bottom';
-                        const partHtml = UI_RENDERER.generateEmailBannerHtml(y, m, title, author, part);
-                        const w = window.open('', '_blank');
-                        if (!w) { UI_RENDERER.showNotification('กรุณาอนุญาต Pop-up แล้วลองใหม่', 'error'); return; }
-                        w.document.write(partHtml);
-                        w.document.close();
+                        const btn = e.target.closest('button[data-action="copy-image"]');
+                        if (btn) { btn.disabled = true; btn.classList.add('opacity-60','cursor-not-allowed'); }
+                        handleCopyBannerImage(y, m, title, author).finally(() => {
+                            if (btn) { btn.disabled = false; btn.classList.remove('opacity-60','cursor-not-allowed'); }
+                        });
                     }
                 });
+            }
+
+            // ── Email Banner: capture → clipboard → download fallback ──────
+            function _getBannerCaptureEl() {
+                if (!_bannerCaptureEl) {
+                    _bannerCaptureEl = document.createElement('div');
+                    _bannerCaptureEl.id = 'eb-capture-root';
+                    _bannerCaptureEl.style.cssText = 'position:fixed;left:-9999px;top:0;z-index:-1;pointer-events:none;';
+                    document.body.appendChild(_bannerCaptureEl);
+                }
+                return _bannerCaptureEl;
+            }
+
+            async function _waitForBannerFonts() {
+                if (document.fonts && document.fonts.ready) {
+                    await Promise.race([ document.fonts.ready, new Promise(res => setTimeout(res, 3000)) ]);
+                    await new Promise(res => setTimeout(res, 100));
+                } else {
+                    await new Promise(res => setTimeout(res, 800));
+                }
+            }
+
+            async function _captureBannerBlob(year, month, title, author) {
+                const root = _getBannerCaptureEl();
+                root.innerHTML = UI_RENDERER.generateEmailBannerContent(year, month, title, author);
+                const node = root.firstElementChild;
+                await _waitForBannerFonts();
+                return await htmlToImage.toBlob(node, {
+                    pixelRatio: 2,
+                    backgroundColor: '#ffffff',
+                    cacheBust: true,
+                });
+            }
+
+            async function handleCopyBannerImage(year, month, title, author) {
+                let blob;
+                try {
+                    blob = await _captureBannerBlob(year, month, title, author);
+                    if (!blob) throw new Error('toBlob returned null');
+                } catch (err) {
+                    DEBUG_MODULE.log('error', 'EMAIL_BANNER_CAPTURE', err);
+                    UI_RENDERER.showNotification('สร้างรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'error');
+                    return;
+                }
+
+                const filename = `Kaizen_Email_Banner_${year}_${String(month).padStart(2,'0')}.png`;
+                try {
+                    if (!navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === 'undefined') {
+                        throw new Error('Clipboard image write API not supported in this browser/context');
+                    }
+                    await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+                    UI_RENDERER.showNotification('คัดลอกรูปภาพแล้ว! ไปที่อีเมลแล้วกด Ctrl+V เพื่อวางได้เลย', 'success');
+                } catch (err) {
+                    DEBUG_MODULE.log('error', 'EMAIL_BANNER_CLIPBOARD', err);
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = filename;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    UI_RENDERER.showNotification('ไม่สามารถคัดลอกรูปภาพอัตโนมัติได้ ระบบดาวน์โหลดไฟล์ PNG ให้แทน กรุณาแนบไฟล์ในอีเมลด้วยตนเอง', 'info');
+                }
             }
 
             return { init };

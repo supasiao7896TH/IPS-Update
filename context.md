@@ -20,11 +20,16 @@
 
 ## Tech stack
 
-- Vanilla JavaScript (ไม่มี framework, ไม่มี build step)
+- Vanilla JavaScript (ไม่มี framework, ไม่มี build step) — จัดโครงสร้างเป็น 9-Module IIFE ตามมาตรฐาน Vibe Coding
+  ของ Supasit.A (ดูรายละเอียดโมดูลใน `agents.md`)
 - Tailwind CSS ผ่าน CDN (pin เวอร์ชัน 3.4.16)
 - Chart.js ผ่าน CDN (pin เวอร์ชัน 4.4.7)
-- Font Awesome 6.5.1 (ไอคอน), Google Fonts — Sarabun (ฟอนต์ไทย)
-- เก็บข้อมูลใน `localStorage` ของเบราว์เซอร์ (ไม่มี backend/database)
+- Lucide Icons ผ่าน CDN (pin เวอร์ชัน 1.28.0), Google Fonts — Noto Sans Thai (ฟอนต์ไทย body) + Fraunces (หัวข้อหลัก)
+- เก็บข้อมูลใน **IndexedDB** ของเบราว์เซอร์ (`kaizen_tracker_db`) — ย้ายจาก localStorage อัตโนมัติครั้งเดียว
+  (ไม่มี backend/database ภายนอก)
+- Gemini API key เข้ารหัสด้วย Web Crypto AES-GCM 256-bit ก่อนเก็บ (ไม่ใช่ plaintext เหมือนเดิม)
+- มี scaffold `CLOUD_SYNC_MANAGER`/`AUTH_PROVIDER` เตรียมไว้สำหรับ Firebase Firestore/Auth ในอนาคต — ปิดด้วย
+  feature flag อยู่ ยังไม่เชื่อม Firebase SDK จริง
 - UI ทั้งหมดเป็นภาษาไทย
 
 ## ประวัติการพัฒนา
@@ -53,7 +58,23 @@
   ในรูปแบบที่ปรับปรุงกว่าเดิม (ใช้ `buildStats`/`makePodiumSvg` แทนโค้ดซ้ำ, แก้ label podium ให้ตรงกับเกณฑ์ YTD)
   ไม่มีอะไรต้อง port เพิ่ม — branch นี้ถือว่าล้าสมัยและปลอดภัยที่จะลบทิ้ง
 
+4. **Refactor 9-Module IIFE + IndexedDB + Web Crypto** (branch `claude/9-module-iife-refactor`) — ปรับสถาปัตยกรรม
+   จาก object `App` เดิมเป็น 9 module (`APP_CONFIG`/`DEBUG_MODULE`/`STATE_STORE`/`STORAGE_ENGINE`/`GEMINI_AI_BRIDGE`/
+   `CLOUD_SYNC_MANAGER`/`AUTH_PROVIDER`/`UI_RENDERER`/`APP_CORE`) ตามมาตรฐาน Vibe Coding ของ Supasit.A:
+   - ย้าย storage จาก localStorage → IndexedDB (`kaizen_tracker_db`) พร้อม one-time migration ที่ไม่ลบข้อมูลเดิม
+     จนกว่าจะ confirm เขียนสำเร็จ (`DEFAULT_DATA` ยืนยันแล้วว่าเป็นข้อมูลจริงของทีม ไม่ใช่ demo — เก็บไว้เป็น seed
+     เหมือนเดิมสำหรับ first-run เท่านั้น)
+   - เข้ารหัส Gemini API key ด้วย AES-GCM 256-bit แทนการเก็บ plaintext ใน localStorage
+   - เพิ่ม reactive pub/sub (`STATE_STORE`) พร้อม optimistic UI + rollback สำหรับทุก CRUD flow
+   - เพิ่ม `CLOUD_SYNC_MANAGER`/`AUTH_PROVIDER` เป็น scaffold พร้อมโครงสร้าง แต่ปิด feature flag ไว้ (ไม่เชื่อม
+     Firebase SDK จริงในรอบนี้ — เตรียมไว้ให้ future pass ต่อง่าย)
+   - สลับไอคอน Font Awesome → Lucide และฟอนต์ Sarabun → Noto Sans Thai + Fraunces สำหรับ live app (เอกสาร
+     PDF/email/banner ที่ generate แยกยังคง Sarabun ตามเดิม เพราะเป็น standalone documents คนละบริบท)
+   - โครงสร้าง JS ยังอยู่ใน `<script>` เดียวเหมือนเดิม (ไม่มีการแตกไฟล์/build step) เพื่อรักษา self-export feature
+
 ## งานค้าง / สิ่งที่ควรรู้ก่อนพัฒนาต่อ
 
 - ฟิลด์ `annualTarget` รายบุคคลในข้อมูลพนักงานยังไม่ถูกใช้งานจริง (ผู้ใช้ยืนยันว่าทุกคนใช้เป้าหมายรวมเดียวกัน)
   หากในอนาคตต้องการเปลี่ยนเป็นเป้าหมายรายคน จะต้องแก้จุดคำนวณ % ความคืบหน้าในหลายฟังก์ชัน
+- `CLOUD_SYNC_MANAGER`/`AUTH_PROVIDER` เป็น scaffold เปล่า — ถ้าจะเปิดใช้ Firebase จริงต้อง import Firebase SDK,
+  ตั้งค่า Firestore/Auth project จริง, แล้วเติม logic ในจุดที่มี comment `TODO(future pass)` กำกับไว้

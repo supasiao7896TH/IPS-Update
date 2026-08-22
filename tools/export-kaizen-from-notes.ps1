@@ -22,7 +22,7 @@ param(
 # ── Config — values confirmed by the user from their Lotus Notes client ──
 $ServerHint  = '5pta6lotus'
 $ReplicaId   = '47256F1D:0006F32C'
-$ViewName    = 'By Section'
+$ViewName    = 'Improvement\By Section'
 $OutputDir   = Join-Path $env:USERPROFILE 'Documents\KaizenExport'
 $OutputPath  = Join-Path $OutputDir 'kaizen_export.csv'
 $DryRunRows  = 15

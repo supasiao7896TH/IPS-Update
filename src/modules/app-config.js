@@ -1,0 +1,83 @@
+        // [Mi-6] Default data constant
+        const DEFAULT_DATA = {
+            sections: [{ id: 1, name: 'PTA' }, { id: 2, name: 'CTA' }],
+            employees: [
+                { id: 1,  firstName: 'Sanit',       lastName: 'Khumkhana',         sectionId: 1, annualTarget: 14 },
+                { id: 2,  firstName: 'Sasiprapa',   lastName: 'Rattananukul',       sectionId: 1, annualTarget: 14 },
+                { id: 4,  firstName: 'Adoon',        lastName: 'Baosongsri',         sectionId: 1, annualTarget: 14 },
+                { id: 5,  firstName: 'Chalermpol',  lastName: 'Foowangmor',         sectionId: 1, annualTarget: 27 },
+                { id: 6,  firstName: 'Chanchat',    lastName: 'Singthong',          sectionId: 1, annualTarget: 11 },
+                { id: 7,  firstName: 'Krissana',    lastName: 'Wattana',            sectionId: 1, annualTarget: 6  },
+                { id: 8,  firstName: 'Supasit',     lastName: 'Aoothai',            sectionId: 1, annualTarget: 13 },
+                { id: 9,  firstName: 'Wuttichat',   lastName: 'Srichompol',         sectionId: 1, annualTarget: 20 },
+                { id: 10, firstName: 'Thanan',      lastName: 'Srephophan',         sectionId: 1, annualTarget: 28 },
+                { id: 11, firstName: 'Sathit',      lastName: 'Rerkdee',            sectionId: 1, annualTarget: 10 },
+                { id: 12, firstName: 'Tanawet',     lastName: 'Chankijthanakul',    sectionId: 1, annualTarget: 13 },
+                { id: 13, firstName: 'Phet',        lastName: 'Nachaithong',        sectionId: 1, annualTarget: 15 },
+                { id: 14, firstName: 'Atiwat',      lastName: 'Samanyapornlert',    sectionId: 1, annualTarget: 11 },
+                { id: 15, firstName: 'Sarayut',     lastName: 'Khongsri',           sectionId: 1, annualTarget: 9  },
+                { id: 16, firstName: 'Kittikorn',   lastName: 'Sookyat',            sectionId: 2, annualTarget: 7  },
+                { id: 17, firstName: 'Phanuwath',   lastName: 'Phutpae',            sectionId: 2, annualTarget: 11 },
+                { id: 18, firstName: 'Suthus',      lastName: 'Chiaraksuwan',       sectionId: 2, annualTarget: 26 },
+                { id: 19, firstName: 'Supat',       lastName: 'Intanai',            sectionId: 2, annualTarget: 18 },
+                { id: 20, firstName: 'Samak',       lastName: 'Kodwong',            sectionId: 2, annualTarget: 6  },
+                { id: 21, firstName: 'Rapee',       lastName: 'Teppitak',           sectionId: 2, annualTarget: 12 },
+                { id: 22, firstName: 'Natapol',     lastName: 'Bouphuon',           sectionId: 2, annualTarget: 14 },
+                { id: 23, firstName: 'Sittichai',   lastName: 'Klaidaeng',          sectionId: 2, annualTarget: 23 },
+                { id: 24, firstName: 'Worawid',     lastName: 'Suriwong',           sectionId: 2, annualTarget: 9  },
+                { id: 25, firstName: 'Panrat',      lastName: 'Rattanasatear',      sectionId: 2, annualTarget: 6  },
+                { id: 26, firstName: 'Withan',      lastName: 'Jumpaon',            sectionId: 2, annualTarget: 33 },
+                { id: 27, firstName: 'Teerawat',    lastName: 'Wongduangpha',       sectionId: 2, annualTarget: 9  },
+                { id: 28, firstName: 'Banchorn',    lastName: 'Srikaew',            sectionId: 2, annualTarget: 10 },
+                { id: 29, firstName: 'Chaitawat',   lastName: 'Charoen',            sectionId: 2, annualTarget: 10 },
+                { id: 30, firstName: 'Kittisak',    lastName: 'Pensee',             sectionId: 2, annualTarget: 11 },
+                { id: 31, firstName: 'Weerayut',    lastName: 'Boonruanguen',       sectionId: 2, annualTarget: 3  }
+            ],
+            activities: [
+                { employeeId: 1,  year: 2025, month: 6, count: 1 },
+                { employeeId: 2,  year: 2025, month: 2, count: 1 }, { employeeId: 2,  year: 2025, month: 3, count: 1 }, { employeeId: 2,  year: 2025, month: 4, count: 1 },
+                { employeeId: 4,  year: 2025, month: 1, count: 1 }, { employeeId: 4,  year: 2025, month: 2, count: 2 }, { employeeId: 4,  year: 2025, month: 3, count: 2 }, { employeeId: 4,  year: 2025, month: 4, count: 1 }, { employeeId: 4,  year: 2025, month: 5, count: 2 }, { employeeId: 4,  year: 2025, month: 6, count: 1 },
+                { employeeId: 5,  year: 2025, month: 1, count: 6 }, { employeeId: 5,  year: 2025, month: 2, count: 5 }, { employeeId: 5,  year: 2025, month: 3, count: 6 }, { employeeId: 5,  year: 2025, month: 4, count: 4 }, { employeeId: 5,  year: 2025, month: 5, count: 5 }, { employeeId: 5,  year: 2025, month: 6, count: 1 },
+                { employeeId: 6,  year: 2025, month: 1, count: 1 }, { employeeId: 6,  year: 2025, month: 2, count: 2 }, { employeeId: 6,  year: 2025, month: 3, count: 1 }, { employeeId: 6,  year: 2025, month: 4, count: 2 }, { employeeId: 6,  year: 2025, month: 5, count: 1 }, { employeeId: 6,  year: 2025, month: 6, count: 4 },
+                { employeeId: 7,  year: 2025, month: 1, count: 1 }, { employeeId: 7,  year: 2025, month: 2, count: 1 }, { employeeId: 7,  year: 2025, month: 3, count: 1 }, { employeeId: 7,  year: 2025, month: 4, count: 1 }, { employeeId: 7,  year: 2025, month: 5, count: 1 }, { employeeId: 7,  year: 2025, month: 6, count: 1 },
+                { employeeId: 8,  year: 2025, month: 1, count: 1 }, { employeeId: 8,  year: 2025, month: 2, count: 2 }, { employeeId: 8,  year: 2025, month: 3, count: 2 }, { employeeId: 8,  year: 2025, month: 4, count: 2 }, { employeeId: 8,  year: 2025, month: 5, count: 2 }, { employeeId: 8,  year: 2025, month: 6, count: 4 },
+                { employeeId: 9,  year: 2025, month: 1, count: 3 }, { employeeId: 9,  year: 2025, month: 2, count: 3 }, { employeeId: 9,  year: 2025, month: 3, count: 4 }, { employeeId: 9,  year: 2025, month: 4, count: 5 }, { employeeId: 9,  year: 2025, month: 5, count: 4 }, { employeeId: 9,  year: 2025, month: 6, count: 1 },
+                { employeeId: 10, year: 2025, month: 1, count: 2 }, { employeeId: 10, year: 2025, month: 2, count: 7 }, { employeeId: 10, year: 2025, month: 3, count: 5 }, { employeeId: 10, year: 2025, month: 4, count: 5 }, { employeeId: 10, year: 2025, month: 5, count: 5 }, { employeeId: 10, year: 2025, month: 6, count: 4 },
+                { employeeId: 11, year: 2025, month: 3, count: 1 }, { employeeId: 11, year: 2025, month: 4, count: 1 }, { employeeId: 11, year: 2025, month: 5, count: 3 }, { employeeId: 11, year: 2025, month: 6, count: 5 },
+                { employeeId: 12, year: 2025, month: 1, count: 2 }, { employeeId: 12, year: 2025, month: 2, count: 2 }, { employeeId: 12, year: 2025, month: 3, count: 2 }, { employeeId: 12, year: 2025, month: 4, count: 3 }, { employeeId: 12, year: 2025, month: 5, count: 2 }, { employeeId: 12, year: 2025, month: 6, count: 2 },
+                { employeeId: 13, year: 2025, month: 1, count: 2 }, { employeeId: 13, year: 2025, month: 2, count: 1 }, { employeeId: 13, year: 2025, month: 3, count: 1 }, { employeeId: 13, year: 2025, month: 4, count: 4 }, { employeeId: 13, year: 2025, month: 5, count: 2 }, { employeeId: 13, year: 2025, month: 6, count: 5 },
+                { employeeId: 14, year: 2025, month: 1, count: 1 }, { employeeId: 14, year: 2025, month: 2, count: 3 }, { employeeId: 14, year: 2025, month: 3, count: 1 }, { employeeId: 14, year: 2025, month: 4, count: 2 }, { employeeId: 14, year: 2025, month: 5, count: 2 }, { employeeId: 14, year: 2025, month: 6, count: 2 },
+                { employeeId: 15, year: 2025, month: 1, count: 1 }, { employeeId: 15, year: 2025, month: 2, count: 3 }, { employeeId: 15, year: 2025, month: 3, count: 1 }, { employeeId: 15, year: 2025, month: 4, count: 1 }, { employeeId: 15, year: 2025, month: 5, count: 1 }, { employeeId: 15, year: 2025, month: 6, count: 2 },
+                { employeeId: 16, year: 2025, month: 1, count: 1 }, { employeeId: 16, year: 2025, month: 2, count: 1 }, { employeeId: 16, year: 2025, month: 3, count: 1 }, { employeeId: 16, year: 2025, month: 4, count: 1 }, { employeeId: 16, year: 2025, month: 5, count: 2 }, { employeeId: 16, year: 2025, month: 6, count: 1 },
+                { employeeId: 17, year: 2025, month: 1, count: 1 }, { employeeId: 17, year: 2025, month: 2, count: 1 }, { employeeId: 17, year: 2025, month: 3, count: 1 }, { employeeId: 17, year: 2025, month: 4, count: 2 }, { employeeId: 17, year: 2025, month: 5, count: 3 }, { employeeId: 17, year: 2025, month: 6, count: 3 },
+                { employeeId: 18, year: 2025, month: 1, count: 4 }, { employeeId: 18, year: 2025, month: 2, count: 4 }, { employeeId: 18, year: 2025, month: 3, count: 6 }, { employeeId: 18, year: 2025, month: 4, count: 4 }, { employeeId: 18, year: 2025, month: 5, count: 6 }, { employeeId: 18, year: 2025, month: 6, count: 2 },
+                { employeeId: 19, year: 2025, month: 1, count: 1 }, { employeeId: 19, year: 2025, month: 2, count: 1 }, { employeeId: 19, year: 2025, month: 3, count: 8 }, { employeeId: 19, year: 2025, month: 4, count: 3 }, { employeeId: 19, year: 2025, month: 5, count: 3 }, { employeeId: 19, year: 2025, month: 6, count: 2 },
+                { employeeId: 20, year: 2025, month: 1, count: 1 }, { employeeId: 20, year: 2025, month: 2, count: 1 }, { employeeId: 20, year: 2025, month: 3, count: 1 }, { employeeId: 20, year: 2025, month: 4, count: 1 }, { employeeId: 20, year: 2025, month: 5, count: 1 }, { employeeId: 20, year: 2025, month: 6, count: 1 },
+                { employeeId: 21, year: 2025, month: 1, count: 2 }, { employeeId: 21, year: 2025, month: 2, count: 1 }, { employeeId: 21, year: 2025, month: 3, count: 1 }, { employeeId: 21, year: 2025, month: 4, count: 2 }, { employeeId: 21, year: 2025, month: 5, count: 2 }, { employeeId: 21, year: 2025, month: 6, count: 4 },
+                { employeeId: 22, year: 2025, month: 1, count: 3 }, { employeeId: 22, year: 2025, month: 2, count: 1 }, { employeeId: 22, year: 2025, month: 3, count: 1 }, { employeeId: 22, year: 2025, month: 4, count: 3 }, { employeeId: 22, year: 2025, month: 5, count: 5 }, { employeeId: 22, year: 2025, month: 6, count: 1 },
+                { employeeId: 23, year: 2025, month: 1, count: 2 }, { employeeId: 23, year: 2025, month: 2, count: 2 }, { employeeId: 23, year: 2025, month: 3, count: 4 }, { employeeId: 23, year: 2025, month: 4, count: 4 }, { employeeId: 23, year: 2025, month: 5, count: 5 }, { employeeId: 23, year: 2025, month: 6, count: 6 },
+                { employeeId: 24, year: 2025, month: 1, count: 1 }, { employeeId: 24, year: 2025, month: 2, count: 2 }, { employeeId: 24, year: 2025, month: 3, count: 3 }, { employeeId: 24, year: 2025, month: 4, count: 1 }, { employeeId: 24, year: 2025, month: 5, count: 1 }, { employeeId: 24, year: 2025, month: 6, count: 1 },
+                { employeeId: 25, year: 2025, month: 3, count: 4 }, { employeeId: 25, year: 2025, month: 5, count: 1 }, { employeeId: 25, year: 2025, month: 6, count: 1 },
+                { employeeId: 26, year: 2025, month: 1, count: 12 }, { employeeId: 26, year: 2025, month: 2, count: 4 }, { employeeId: 26, year: 2025, month: 3, count: 8 }, { employeeId: 26, year: 2025, month: 4, count: 8 }, { employeeId: 26, year: 2025, month: 6, count: 1 },
+                { employeeId: 27, year: 2025, month: 1, count: 2 }, { employeeId: 27, year: 2025, month: 2, count: 1 }, { employeeId: 27, year: 2025, month: 3, count: 1 }, { employeeId: 27, year: 2025, month: 4, count: 2 }, { employeeId: 27, year: 2025, month: 5, count: 2 }, { employeeId: 27, year: 2025, month: 6, count: 1 },
+                { employeeId: 28, year: 2025, month: 1, count: 2 }, { employeeId: 28, year: 2025, month: 2, count: 1 }, { employeeId: 28, year: 2025, month: 3, count: 1 }, { employeeId: 28, year: 2025, month: 4, count: 1 }, { employeeId: 28, year: 2025, month: 5, count: 4 }, { employeeId: 28, year: 2025, month: 6, count: 1 },
+                { employeeId: 29, year: 2025, month: 1, count: 1 }, { employeeId: 29, year: 2025, month: 2, count: 1 }, { employeeId: 29, year: 2025, month: 3, count: 2 }, { employeeId: 29, year: 2025, month: 4, count: 2 }, { employeeId: 29, year: 2025, month: 5, count: 3 }, { employeeId: 29, year: 2025, month: 6, count: 1 },
+                { employeeId: 30, year: 2025, month: 1, count: 1 }, { employeeId: 30, year: 2025, month: 2, count: 3 }, { employeeId: 30, year: 2025, month: 3, count: 1 }, { employeeId: 30, year: 2025, month: 4, count: 1 }, { employeeId: 30, year: 2025, month: 5, count: 1 }, { employeeId: 30, year: 2025, month: 6, count: 4 },
+                { employeeId: 31, year: 2025, month: 6, count: 3 }
+            ]
+        };
+
+        // ─── APP_CONFIG ─────────────────────────────────────────────────────
+export const APP_CONFIG = (() => {
+            'use strict';
+            return {
+                storageKeys: { sections: 'kaizen_v2_sections', employees: 'kaizen_v2_employees', activities: 'kaizen_v2_activities' },
+                monthNames:     ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."],
+                fullMonthNames: ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"],
+                DEFAULT_DATA,
+                DB_NAME: 'kaizen_tracker_db',
+                DB_VERSION: 1,
+                GEMINI_MODEL: 'gemini-flash-latest',
+                features: { cloudSyncEnabled: false, authEnabled: false },
+            };
+        })();

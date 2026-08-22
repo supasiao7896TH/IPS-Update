@@ -3,33 +3,50 @@
 คำแนะนำนี้สำหรับ AI agent (Claude Code หรือเครื่องมืออื่น) ที่จะพัฒนาต่อบน repo นี้
 ดูภาพรวมโปรเจกต์และประวัติที่ `context.md`
 
-## โครงสร้าง repo
+## โครงสร้าง repo (multi-file, ตั้งแต่ 2569-08)
 
-- ไม่มี build step, ไม่มี test suite, ไม่มี `package.json`, ไม่มี CI
-- โค้ดทั้งหมดอยู่ในไฟล์เดียว: **`index.html`** (single-file web app)
-- เปิดไฟล์นี้ตรงในเบราว์เซอร์เพื่อรัน ไม่ต้องติดตั้งอะไรเพิ่ม
+> **History note**: โปรเจกต์นี้ย้ายจาก Single HTML File (9-module IIFE ในสคริปต์เดียว) มาเป็น Vite + ES Modules
+> เมื่อ `index.html` ยาวเกิน ~2,800 บรรทัดจนแก้ยาก ตาม `vibe-coding-multifile` skill — ดู "History" ใน `context.md`
+> สำหรับรายละเอียดเต็ม โครงสร้าง 9 module เดิมยังอยู่ครบ แค่ย้ายจาก 1 IIFE/ไฟล์เดียว ไปเป็น 1 `export const`/ไฟล์ของตัวเอง
 
-## โครงสร้างโค้ดใน `index.html` — 9-Module IIFE (Vibe Coding standard)
+- Build tool: **Vite** (`npm run dev`/`npm run build`/`npm run preview`)
+- Unit test: **Vitest** (`npm test`) — เทสเฉพาะจุดเสี่ยง ไม่ต้อง 100% coverage
+- CI: GitHub Actions (`.github/workflows/ci.yml`) รัน `npm ci && npm run build && npm test` ทุก push/PR เข้า `main`
+  — ยังไม่มี deploy job (เพิ่มทีหลังผ่าน `cloudflare-workers-deploy` skill ถ้าต้องการ hosting)
+- `index.html` เหลือแค่ markup/CSS/CDN `<script src>` tags — ไม่มี logic JS อยู่ใน `index.html` แล้ว
+- Third-party libs (Tailwind CDN, Chart.js, Lucide, html-to-image) **ยังโหลดผ่าน CDN `<script>` ใน `index.html` เหมือนเดิม**
+  ไม่ได้ย้ายเป็น npm import — โมดูลที่ใช้ประกาศ `/* global Chart, lucide */` หรือ `/* global lucide, htmlToImage */` กำกับไว้
 
-โค้ด JS ทั้งหมดยังอยู่ใน `<script>` เดียว (จำเป็น — ดูข้อ "ห้ามแตกไฟล์" ด้านล่าง) แต่แบ่งเป็น 9 IIFE module แทน object `App` เดิม:
+## โครงสร้าง `src/` — 9 module เดิม, คนละไฟล์
 
 ```
-APP_CONFIG          — ค่าคงที่ (storage keys, ชื่อเดือน, DEFAULT_DATA, DB_NAME/VERSION, Gemini model, feature flags)
-DEBUG_MODULE        — structured logging: log(level, scope, err) / getLog()
-STATE_STORE         — reactive pub/sub (get/set/on/off) + optimisticUpdate(key, next, persistFn) พร้อม rollback
-STORAGE_ENGINE       — IndexedDB (Promise-based) CRUD + migrateFromLocalStorage() ครั้งเดียว + export/import JSON
-GEMINI_AI_BRIDGE     — OCR (Gemini Vision), fuzzy name matching, เข้ารหัส/ถอดรหัส API key ด้วย AES-GCM
-CLOUD_SYNC_MANAGER   — scaffold เท่านั้น (feature flag ปิด, ไม่มี Firebase SDK จริง)
-AUTH_PROVIDER        — scaffold เท่านั้น (feature flag ปิด, ไม่มี Firebase SDK จริง)
-UI_RENDERER          — render ตาราง/กราฟ/modal/notification + 5 generator ฟังก์ชัน (email/PDF/banner/podium/buildStats)
-APP_CORE             — init(), event handlers ทั้งหมด, CRUD orchestration ผ่าน STATE_STORE.optimisticUpdate
+src/
+├── main.js                      — เดิมคือ APP_CORE: init(), event handlers ทั้งหมด, CRUD orchestration
+└── modules/
+    ├── utils.js                  — escHtml, storageAvailable, HAS_STORAGE (bare helpers เดิม ก่อน APP_CONFIG)
+    ├── app-config.js             — APP_CONFIG (รวม DEFAULT_DATA)
+    ├── debug-module.js           — DEBUG_MODULE
+    ├── state-store.js            — STATE_STORE
+    ├── dom-cache.js               — buildDomCache() (bare function เดิม ไม่ใช่ module)
+    ├── storage-engine.js         — STORAGE_ENGINE
+    ├── gemini-ai-bridge.js       — GEMINI_AI_BRIDGE
+    ├── auth-provider.js          — AUTH_PROVIDER (scaffold)
+    ├── cloud-sync-manager.js     — CLOUD_SYNC_MANAGER (scaffold)
+    └── ui-renderer.js            — UI_RENDERER
 ```
 
-`buildDomCache()` เป็น plain function (ไม่ใช่ module) ที่สร้าง DOM cache ครั้งเดียวใน `APP_CORE.init()` แล้วส่งเข้า `UI_RENDERER.setDom()`
+แต่ละไฟล์ export ตัวแปรเดียวชื่อเดียวกับ module เดิม (`export const APP_CONFIG = ...`) แล้ว import กันข้ามไฟล์ตามที่ใช้จริง
+**หมายเหตุ circular import**: STATE_STORE ↔ CLOUD_SYNC_MANAGER ↔ UI_RENDERER และ STORAGE_ENGINE ↔ GEMINI_AI_BRIDGE
+import กันเป็นวงจร (เหมือน closure เดิมตอนอยู่ไฟล์เดียว) — ใช้ได้ปกติเพราะทุกจุดที่ cross-reference อยู่ **ใน function
+body เท่านั้น** ไม่มีการเรียกใช้ตอน module top-level evaluation — ห้ามเปลี่ยนให้เรียก cross-module function ที่ระดับ
+top-level ของไฟล์ (นอกฟังก์ชัน) เพราะจะทำให้ circular import พังตอน build
 
-**ห้ามแตกเป็นหลาย `<script>` tag**: `handleExportHtmlClick()` (ใน `APP_CORE`) พึ่งพา regex ที่หา
-`<script id="data-injector">...</script>` เพียงตำแหน่งเดียวใน `document.documentElement.outerHTML` เพื่อ self-export —
-ทุก module ต้องอยู่ใน `<script>` tag เดียวกันเสมอ
+**`handleExportHtmlClick()` (ใน `main.js`) กับฟีเจอร์ "ส่งออกเป็นไฟล์เดียว (.html)"**: ยังทำงานเหมือนเดิมทุกประการ
+เพราะ `vite.config.js` ใช้ plugin **`vite-plugin-singlefile`** — `npm run build` จะ inline JS ทั้งหมดกลับเข้า
+`dist/index.html` ไฟล์เดียว (ไม่มี asset แยก) ทำให้ `document.documentElement.outerHTML` ยังจับ `<script>` ที่มีโค้ด
+ทั้งหมดฝังอยู่ได้เหมือนตอนเป็น single-file — **ห้ามลบ `vite-plugin-singlefile` ออกจาก `vite.config.js`** ไม่งั้นไฟล์ที่
+export จะอ้าง asset แยกที่หาไม่เจอเมื่อเปิดเครื่องอื่น (ทดสอบแล้วที่ commit ย้าย multi-file: `npm run build` แล้วกด
+export บน `dist/index.html` ยืนยันว่า inline สำเร็จ ไม่มี asset แยก)
 
 ## Data model
 
@@ -100,20 +117,22 @@ activities = { id, employeeId, year, month, count }   // id เป็น synthet
 
 ## วิธีทดสอบการเปลี่ยนแปลง
 
-ไม่มี automated test — ต้องทดสอบด้วยมือทุกครั้ง:
-
-1. เปิดไฟล์ผ่าน local HTTP server (เช่น `python -m http.server`) แล้วเปิด `http://localhost:PORT/index.html` —
-   Chrome extension บางตัวเปิด `file://` ตรงไม่ได้ ต้องใช้ server เสมอเวลาเทสต์ผ่าน browser automation
-2. เช็ค browser console ว่าไม่มี error (โดยเฉพาะหลังแก้ JS ในไฟล์) — ปกติจะเห็นแค่ log ระดับ `info` จาก
+1. `npm install` (ครั้งแรก/หลัง pull ที่ package.json เปลี่ยน), แล้ว `npm run dev` เปิด `http://localhost:5173/`
+   — มี hot reload ระหว่างแก้ `src/**/*.js`
+2. `npm test` รัน Vitest suite (`tests/*.test.js`) — เทสตอนนี้ครอบคลุม `escHtml`, `GEMINI_AI_BRIDGE.matchEmployeeByName`
+   (fuzzy matching, ใช้ร่วมทั้ง OCR และ Lotus Notes CSV bridge ในอนาคต), `STORAGE_ENGINE.serializeForExport`
+   (regression test ป้องกันบั๊ก `</script>` escaping ที่เคยเกิดจริง) — เพิ่มเทสใหม่เฉพาะจุดที่ซับซ้อน/เคยพังจริงเท่านั้น
+   ไม่ต้องไล่ทำ 100% coverage
+3. เช็ค browser console ว่าไม่มี error (โดยเฉพาะหลังแก้ JS ในไฟล์) — ปกติจะเห็นแค่ log ระดับ `info` จาก
    `CLOUD_SYNC_MANAGER.pushChange`/`AUTH_PROVIDER.signInAnonymously` ("skipped — feature flag off")
-3. เช็ค DevTools → Application → IndexedDB → `kaizen_tracker_db` ว่ามีครบ 5 stores และ row count ตรงกับข้อมูลเดิม
-4. ทดสอบ flow หลักที่เกี่ยวข้องกับจุดที่แก้ เช่น: บันทึกกิจกรรม → ตารางอัพเดท (และ submit ซ้ำเดือน/ปี/คนเดิม
+4. เช็ค DevTools → Application → IndexedDB → `kaizen_tracker_db` ว่ามีครบ 5 stores และ row count ตรงกับข้อมูลเดิม
+5. ทดสอบ flow หลักที่เกี่ยวข้องกับจุดที่แก้ เช่น: บันทึกกิจกรรม → ตารางอัพเดท (และ submit ซ้ำเดือน/ปี/คนเดิม
    ต้อง update in place ไม่ duplicate row), import JSON ที่มี record ซ้ำ → ยอดรวมต้องตรงกับผลรวมรายเดือน,
    export PDF/email banner → เปิด preview ใน iframe แล้วตรวจ podium/สี/เลข
-5. ถ้าแก้ syntax ของ `<script>` block ให้ตรวจ syntax ก่อนด้วย `node --check` (ดึงเนื้อหาใน `<script>` ออกมาก่อน)
-   เพราะไฟล์เป็น HTML ทั้งไฟล์ ไม่ใช่ `.js` โดยตรง
-6. ถ้าแก้ `handleExportHtmlClick`/`serializeForExport` (self-export feature) ต้องทดสอบเปิดไฟล์ export
-   จริงว่ามีข้อมูลฝังอยู่ และ regex data-injector ยังจับ tag แรก (ของจริง) ได้ถูกต้อง
+6. ถ้าแก้ `handleExportHtmlClick`/`serializeForExport` (self-export feature) ต้อง `npm run build && npm run preview`
+   แล้วทดสอบเปิดไฟล์ export จริงจาก preview (ไม่ใช่จาก `npm run dev`) ว่ามีข้อมูลฝังอยู่จริง, `<script type="module">`
+   ไม่มี `src=` (inline หมดแล้วโดย `vite-plugin-singlefile`), และ regex data-injector ยังจับ tag แรก (ของจริง) ได้ถูกต้อง
+   — เทสจาก dev server เฉยๆ ไม่พอ เพราะ dev mode ยังโหลด module แยกไฟล์ ไม่ได้ inline เหมือน production build
 
 ## Git
 

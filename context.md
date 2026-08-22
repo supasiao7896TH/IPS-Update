@@ -22,8 +22,9 @@
 
 ## Tech stack
 
-- Vanilla JavaScript (ไม่มี framework, ไม่มี build step) — จัดโครงสร้างเป็น 9-Module IIFE ตามมาตรฐาน Vibe Coding
-  ของ Supasit.A (ดูรายละเอียดโมดูลใน `agents.md`)
+- Vanilla JavaScript — Vite + ES Modules (ย้ายจาก Single HTML File เมื่อ 2569-08, ดู "ประวัติการพัฒนา" ข้อ 5) —
+  จัดโครงสร้างเป็น 9 module เดิมตามมาตรฐาน Vibe Coding ของ Supasit.A แค่คนละไฟล์ใน `src/modules/` แทน 1 IIFE/ไฟล์เดียว
+  (ดูรายละเอียดโมดูลและ build/test commands ใน `agents.md`)
 - Tailwind CSS ผ่าน CDN (pin เวอร์ชัน 3.4.16)
 - Chart.js ผ่าน CDN (pin เวอร์ชัน 4.4.7)
 - Lucide Icons ผ่าน CDN (pin เวอร์ชัน 1.28.0), Google Fonts — Noto Sans Thai (ฟอนต์ไทย body) + Fraunces (หัวข้อหลัก)
@@ -53,7 +54,10 @@
 
 ## สถานะปัจจุบัน
 
-`main` มีไฟล์: `README.md`, `index.html` (เดิมชื่อ `Kaizen_Tracker07_1.html`), `context.md`, `agents.md`
+`main` มีไฟล์หลัก: `README.md`, `index.html` (เดิมชื่อ `Kaizen_Tracker07_1.html`, ตอนนี้เหลือแค่ markup/CDN scripts),
+`context.md`, `agents.md`, `package.json`/`vite.config.js`, `src/main.js` + `src/modules/*.js` (9 module เดิม),
+`tests/*.test.js` (Vitest), `.github/workflows/ci.yml`, `tools/export-kaizen-from-notes.ps1`+`.cmd` (Lotus Notes
+Bridge Phase A — ดู "งานค้าง" ด้านล่าง)
 
 - **branch `claude/fix-podium-ranking-dLuHD` — reconciled แล้ว (2026-07-15)**: ตรวจ diff ทีละฟังก์ชัน
   (podium SVG chibi/crown/glow/medal, email banner top/bottom split, `zoom:2`, motivation segment,
@@ -75,7 +79,33 @@
      PDF/email/banner ที่ generate แยกยังคง Sarabun ตามเดิม เพราะเป็น standalone documents คนละบริบท)
    - โครงสร้าง JS ยังอยู่ใน `<script>` เดียวเหมือนเดิม (ไม่มีการแตกไฟล์/build step) เพื่อรักษา self-export feature
 
+5. **ย้าย Single HTML File → Vite + ES Modules** (2569-08-22) — `index.html` ยาวเกิน 2,800 บรรทัดจนแก้ยาก
+   ตาม Decision Table ของ `vibe-coding-multifile` skill พี่ A ยืนยันให้ย้ายทันที (ก่อนเริ่มต่อฟีเจอร์ Lotus Notes
+   Bridge ที่วางแผนไว้คู่กัน — ดู `tools/export-kaizen-from-notes.ps1` สำหรับ Phase A ของงานนั้น ซึ่งยังไม่ได้ผูกเข้า
+   `index.html` เพราะรอย้ายสถาปัตยกรรมนี้เสร็จก่อน):
+   - แยก 9 module เดิมออกเป็นไฟล์ `src/modules/*.js` (`export const` แทน IIFE ในสคริปต์เดียว) + `src/main.js`
+     (เดิมคือ `APP_CORE`) ตาม pattern เดียวกับ `vibe-coding-core` §2 — โค้ดภายในแต่ละ module **ไม่ได้แก้ logic เลย**
+     ย้ายแบบ 1:1 ด้วย `sed` extraction เพื่อลดความเสี่ยง transcription error
+   - เพิ่ม `vite-plugin-singlefile` ใน `vite.config.js` เพื่อรักษาฟีเจอร์ "ส่งออกเป็นไฟล์เดียว (.html)"
+     (`handleExportHtmlClick`/regex `data-injector`) ให้ยังทำงานเหมือนเดิมทุกประการ — ทดสอบแล้วว่า `npm run build`
+     inline JS กลับเข้า `dist/index.html` ไฟล์เดียวจริง (ไม่มี asset แยก) ก่อนตัดสินใจนี้ได้ประเมินความเสี่ยงเรื่อง
+     asset แยกทำให้ export ไม่ standalone จริงไว้ล่วงหน้า แล้วเลือก mitigate ด้วย plugin นี้แทนการยอมรับ regression
+   - เพิ่ม Vitest + เทส 3 ไฟล์ (`tests/*.test.js`) ครอบคลุมจุดเสี่ยงที่มีประวัติบั๊กจริง: `escHtml`,
+     `matchEmployeeByName` (fuzzy matching, ใช้ร่วม Lotus Notes Bridge ในอนาคต), `serializeForExport`
+     (regression test บั๊ก `</script>` escaping ที่เคยแก้จริงใน PR ก่อนหน้า)
+   - เพิ่ม GitHub Actions CI (`.github/workflows/ci.yml`) — build-and-test เท่านั้น ยังไม่มี deploy job
+     (ตัดสินใจจำกัด scope รอบนี้ ไม่ผูก hosting เพราะยังไม่มีใครขอ)
+   - ยืนยันแล้วว่า circular import ระหว่าง `STATE_STORE`/`CLOUD_SYNC_MANAGER`/`UI_RENDERER` และ
+     `STORAGE_ENGINE`/`GEMINI_AI_BRIDGE` (เหมือน closure เดิมตอนอยู่ไฟล์เดียว) ทำงานถูกต้องทั้งใน dev/build/test
+     เพราะทุกจุด cross-reference อยู่ใน function body ไม่ใช่ top-level module evaluation
+
 ## งานค้าง / สิ่งที่ควรรู้ก่อนพัฒนาต่อ
+
+- **Lotus Notes Bridge (แทน screenshot + Gemini Vision OCR)**: Phase A เสร็จแล้ว (`tools/export-kaizen-from-notes.ps1`
+  + `.cmd` wrapper — PowerShell COM automation อ่าน view "By Section" ใน database replica ID `47256F1D:0006F32C`
+  ผ่าน `Lotus.NotesSession`, export เป็น CSV UTF-8) แต่ **ยังไม่ได้ทดสอบจริงกับ Lotus Notes บนเครื่องที่ทำงาน**
+  และ **ยังไม่ได้ทำ Phase B** (ผูก CSV import เข้า `src/main.js`/`src/modules/` แทนที่ปุ่ม OCR เดิม — ดูแผนเดิมที่
+  `showOcrReviewModal` ต้องถูก reuse ไม่ใช่ fork) รอพี่ A รัน `-DryRun` ยืนยัน column mapping ก่อนเริ่ม Phase B
 
 - ฟิลด์ `annualTarget` รายบุคคลในข้อมูลพนักงานยังไม่ถูกใช้งานจริง (ผู้ใช้ยืนยันว่าทุกคนใช้เป้าหมายรวมเดียวกัน)
   หากในอนาคตต้องการเปลี่ยนเป็นเป้าหมายรายคน จะต้องแก้จุดคำนวณ % ความคืบหน้าในหลายฟังก์ชัน

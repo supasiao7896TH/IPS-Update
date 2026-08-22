@@ -60,39 +60,49 @@ if ($Times.Count -eq 0) {
 Write-Info "Registering $($Times.Count) scheduled task(s) to run monthly on day $Day at: $($Times -join ', ')"
 Write-Info "(only while you are logged on to Windows on this PC -- see the comment header in this script for why)"
 
-# schtasks.exe (not Register-ScheduledTask -- that cmdlet has no built-in monthly-day
-# trigger, and only accepts one start time per task) supports /SC MONTHLY /D <day>
-# directly. Omitting /RU and /RP registers each task under the current user with an
-# interactive logon type: no password needed, and it only runs while that user is
-# logged on -- exactly the safer behavior we want. One task per time in -Times, so
-# a run that fails at 11:00 (e.g. Notes was open) still gets another try at 23:00.
-$taskRun = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+# schtasks.exe /SC MONTHLY /D <day> is the simplest reliable way to get a true
+# "day N of every month" trigger (Register-ScheduledTask has no such trigger built
+# in, and hand-building one via the MSFT_TaskMonthlyTrigger CIM class failed here
+# with "The parameter is incorrect"). schtasks.exe's /TR value needs the target
+# path (which has spaces, e.g. "IPS Auto Update") wrapped in its own escaped
+# quotes -- calling schtasks.exe directly from PowerShell mangles that (PowerShell
+# re-quotes the whole argument on top of our embedded quotes, confirmed on-site:
+# "ERROR: Invalid argument/option - 'Auto'"). Routing the fully-built command
+# through cmd.exe /c avoids that: cmd.exe re-tokenizes and quotes the line itself
+# the way schtasks.exe expects, since that's how it's normally invoked anyway.
+$psCommand = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"' + $ScriptPath + '\"'
 $createdNames = @()
+$failed = @()
 
-try {
-    foreach ($t in $Times) {
-        $suffix = $t -replace ':', ''
-        $taskName = "${TaskNamePrefix}_$suffix"
-        & schtasks.exe /Create /TN $taskName /TR $taskRun /SC MONTHLY /D $Day /ST $t /F
-        if ($LASTEXITCODE -ne 0) { throw "schtasks.exe exited with code $LASTEXITCODE while creating '$taskName'" }
+foreach ($t in $Times) {
+    $suffix = $t -replace ':', ''
+    $taskName = "${TaskNamePrefix}_$suffix"
+    $fullCmd = 'schtasks /Create /TN "' + $taskName + '" /TR "' + $psCommand + '" /SC MONTHLY /D ' + $Day + ' /ST ' + $t + ' /F'
+
+    $output = cmd.exe /c $fullCmd 2>&1
+    if ($LASTEXITCODE -eq 0) {
         $createdNames += $taskName
+    } else {
+        $failed += @{ Name = $taskName; Output = ($output -join ' ') }
     }
+}
 
-    Write-Ok ""
-    Write-Ok "Done. $($createdNames.Count) task(s) registered, each running on day $Day of every month:"
-    foreach ($n in $createdNames) { Write-Ok "  - $n" }
-    Write-Ok "All of them run ONLY while you are logged on to Windows on this PC."
-    Write-Info ""
-    Write-Info "If you're not at work / not logged in that day, that month's export just won't run"
-    Write-Info "(no error, nothing breaks) -- run '.\export-kaizen-from-notes.cmd' manually when"
-    Write-Info "you're back, or just wait for next month's trigger. The web app's Auto-Sync button"
-    Write-Info "will also show a reminder if this month's data hasn't been synced yet."
-    Write-Info "Reminder: if Lotus Notes client is open at the trigger time, that run will fail safely (old CSV kept) --"
-    Write-Info "that's exactly why there are $($createdNames.Count) tries a day instead of just one."
-    Write-Info "Check export_log.txt next to kaizen_export.csv to see the real success/failure history."
-    Write-Info "You can also see/edit these tasks any time in Windows 'Task Scheduler' under Task Scheduler Library."
-} catch {
-    Write-Err2 "FAILED to register scheduled task: $($_.Exception.Message)"
+if ($failed.Count -gt 0) {
+    foreach ($f in $failed) { Write-Err2 "FAILED to register '$($f.Name)': $($f.Output)" }
     Write-Err2 "If this is blocked by IT policy, ask your IT admin, or just keep running the export manually."
     exit 1
 }
+
+Write-Ok ""
+Write-Ok "Done. $($createdNames.Count) task(s) registered, each running on day $Day of every month:"
+foreach ($n in $createdNames) { Write-Ok "  - $n" }
+Write-Ok "All of them run ONLY while you are logged on to Windows on this PC."
+Write-Info ""
+Write-Info "If you're not at work / not logged in that day, that month's export just won't run"
+Write-Info "(no error, nothing breaks) -- run '.\export-kaizen-from-notes.cmd' manually when"
+Write-Info "you're back, or just wait for next month's trigger. The web app's Auto-Sync button"
+Write-Info "will also show a reminder if this month's data hasn't been synced yet."
+Write-Info "Reminder: if Lotus Notes client is open at the trigger time, that run will fail safely (old CSV kept) --"
+Write-Info "that's exactly why there are $($createdNames.Count) tries a day instead of just one."
+Write-Info "Check export_log.txt next to kaizen_export.csv to see the real success/failure history."
+Write-Info "You can also see/edit these tasks any time in Windows 'Task Scheduler' under Task Scheduler Library."

@@ -140,15 +140,26 @@ Bridge Phase A — ดู "งานค้าง" ด้านล่าง)
    - **ทดสอบผ่าน browser automation ได้แค่บางส่วน**: ยืนยันแล้วว่า `'showOpenFilePicker' in window` เป็น `true` และ
      ไม่มี error จากการ wiring (build/test ผ่านหมด) แต่ **ไม่สามารถทดสอบ flow เลือกไฟล์จริงผ่าน automation ได้**
      เพราะ `showOpenFilePicker()` บังคับ real user gesture ตามสเปก (ยืนยันแล้วว่าเรียกนอก gesture context จะได้
-     `SecurityError` ทันที ไม่ใช่ hang) — **พี่ A ต้องทดสอบ flow "ตั้งค่า Auto-Sync" + auto-sync จริงเองในเบราว์เซอร์ปกติ**
+     `SecurityError` ทันที ไม่ใช่ hang)
+   - **แก้บั๊กจริงหลังทดสอบบนเครื่องจริง (2569-08-22)**: ที่คาดไว้ว่า "ตั้งครั้งเดียวแล้วไม่ต้องกดอีกเลยตลอดไป" **ไม่เป็นจริง
+     ในทางปฏิบัติ** — เบราว์เซอร์ (ทดสอบบน Edge) ไม่คงสิทธิ์ File System Access ข้าม page reload เลย ทำให้
+     `requestPermission()` ที่เรียกจาก `init()` (ไม่มี user gesture) โดน `SecurityError: User activation is required`
+     ทันที (เจอผ่าน diagnostic log ที่เพิ่มเข้าไปใน `fs-sync.js` ชั่วคราวระหว่าง debug) — แก้โดยแยกเป็น 2 ฟังก์ชัน:
+     `trySilentSync()` (เรียกจาก `init()`, เช็คแค่ `queryPermission()` ไม่เรียก `requestPermission()` เด็ดขาด — ซิงก์
+     เงียบๆ ได้เฉพาะกรณีที่สิทธิ์เดิมยังไม่หมดจริงๆ) กับ `resumeSync()` (เรียกจากปุ่ม "Auto-Sync" ตอนคลิก — มี gesture
+     จริง จึงขอสิทธิ์ใหม่ได้ผ่านหน้าต่าง "Allow"/"Don't Allow" ของเบราว์เซอร์ แล้วซิงก์ทันที) — **สรุปพฤติกรรมจริง:
+     พี่ A ต้องกดปุ่ม "Auto-Sync จาก Lotus Notes" หนึ่งครั้งทุกครั้งที่เปิดแอปใหม่** (ไม่ต้องเลือกไฟล์ซ้ำ แค่กดยืนยัน 1 คลิก
+     แล้วซิงก์ให้ทันที) — ยืนยันแล้วว่าทำงานถูกต้องบนเครื่องจริง: คลิกปุ่ม → เบราว์เซอร์ถามสิทธิ์ ("Allow this site to
+     view and copy kaizen_export.csv?") → กด Allow → toast ซิงก์สำเร็จขึ้นทันที
 
 ## งานค้าง / สิ่งที่ควรรู้ก่อนพัฒนาต่อ
 
-- **Lotus Notes Bridge Phase C ยังไม่ได้ทดสอบจริงจากพี่ A**: (1) ยังไม่ได้กด "ตั้งค่า Auto-Sync" จริงเพื่อยืนยันว่า
-  `showOpenFilePicker` เปิด native dialog ได้จริงบนเครื่องพี่ A และเลือกไฟล์ได้ (2) ยังไม่ได้ทดสอบว่าเปิดแอปซ้ำแล้ว
-  auto-sync จริงโดยไม่ต้องกดอะไร (3) ยังไม่ได้รัน `tools/setup-scheduled-export.ps1` จริงเพื่อสร้าง Scheduled Task
-  (4) ยังไม่ได้ทดสอบเปิด `dist/index.html` ตรงๆ ผ่าน `file://` (double-click) ว่า IndexedDB/File System Access API
-  ทำงานถูกต้องหรือไม่ — แนะนำให้ทดสอบตามลำดับนี้ก่อนพึ่งพา automation เต็มรูปแบบ
+- **Lotus Notes Bridge Phase C — สถานะทดสอบจริง (2569-08-22)**: ยืนยันแล้วว่าเซสชัน dev นี้รันอยู่บนเครื่องทำงานจริง
+  (host `GCMPPC23P1103`, มี `C:\HCL\notes` จริง) เปิด `dist/index.html` ผ่าน `file://` (double-click/`Start-Process`)
+  ได้ปกติ, ปุ่ม "Auto-Sync จาก Lotus Notes" ทดสอบผ่านจริงครบ flow แล้ว (setup ครั้งแรกเลือกไฟล์ → resume ครั้งต่อไปกด
+  ยืนยันสิทธิ์ผ่านหน้าต่าง Allow ของเบราว์เซอร์ → toast ซิงก์สำเร็จ) — **ยังไม่ได้รัน
+  `tools/setup-scheduled-export.ps1` จริงเพื่อสร้าง Windows Scheduled Task** (พี่ A ยังไม่ยืนยันเวลาที่ต้องการ/ยังไม่ได้
+  ขอให้ตั้งจริง) — เป็นงานค้างเดียวที่เหลือของ Phase C
 
 - ฟิลด์ `annualTarget` รายบุคคลในข้อมูลพนักงานยังไม่ถูกใช้งานจริง (ผู้ใช้ยืนยันว่าทุกคนใช้เป้าหมายรวมเดียวกัน)
   หากในอนาคตต้องการเปลี่ยนเป็นเป้าหมายรายคน จะต้องแก้จุดคำนวณ % ความคืบหน้าในหลายฟังก์ชัน

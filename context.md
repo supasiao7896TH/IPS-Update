@@ -121,14 +121,34 @@ Bridge Phase A — ดู "งานค้าง" ด้านล่าง)
    - **Phase A ยืนยันเสร็จสมบูรณ์แล้ว (2569-08-22)**: `-DryRun -Year 2026 -Month 7` สแกน 48,256 entries เจอ 63 แถว
      ตรงเงื่อนไข (PE1/2026/7) จาก 27 คน พี่ A เทียบกับหน้าจอ Lotus Notes จริงแล้วว่าตรง (เช่น Thanan Srephophan=6,
      Supasit Aoothai=5, Sittichai Klaidaeng=4) — ชื่อพนักงานที่ได้ตรงกับ roster ในแอปเป๊ะ
+   - **Phase B ยืนยัน end-to-end ด้วยข้อมูลจริง (2569-08-22)**: export CSV จริง (27 คน) → import ผ่านปุ่ม "นำเข้าจาก
+     Lotus Notes (CSV)" → บันทึกสำเร็จ
+
+7. **Lotus Notes Bridge Phase C — Automation** (2569-08-22) — พี่ A ขอลดขั้นตอนมือลงอีก โดยเลือกยอมรับความเสี่ยงเพิ่ม
+   2 จุด (แจ้งชัดเจนแล้วก่อนเริ่ม): PowerShell รันอัตโนมัติผ่าน Windows Task Scheduler แทนกดรันเอง + เว็บแอปบันทึก
+   อัตโนมัติทันทีไม่มี modal ให้ตรวจสอบก่อน:
+   - `tools/export-kaizen-from-notes.ps1`: เพิ่ม `-OutputPath` parameter (ปรับที่เก็บไฟล์ได้) + เขียน log ทุกครั้ง
+     ที่รัน (`export_log.txt` ข้างไฟล์ CSV — สำคัญเพราะรันแบบไม่มีคนเฝ้าแล้ว ต้องมีทางเช็ค success/fail ย้อนหลัง)
+   - `tools/setup-scheduled-export.ps1` (+ `.cmd`) ใหม่ — รันครั้งเดียวเพื่อลงทะเบียน Windows Scheduled Task
+     (`Register-ScheduledTask`, ไม่ต้องสิทธิ์ admin) ให้ export script รันทุกวันตามเวลาที่ตั้ง (default 07:30)
+   - `src/modules/fs-sync.js` ใหม่ — File System Access API auto-sync (Chrome/Edge เท่านั้น): ปุ่ม "ตั้งค่า Auto-Sync
+     จาก Lotus Notes" ให้สิทธิ์อ่านไฟล์ครั้งเดียว (`showOpenFilePicker`, เก็บ handle ใน IndexedDB) แล้ว
+     `trySilentSync()` (เรียกจาก `APP_CORE.init()`) จะเช็ค `file.lastModified` ก่อนทุกครั้ง — import เฉพาะไฟล์ที่ใหม่
+     กว่าที่เคย sync (กันบันทึกซ้ำ), ปีเดือนดึงจากคอลัมน์ `Date` ในไฟล์เอง (ไม่มี modal ให้เลือก)
+   - Refactor `src/main.js`: แยก `saveExtractedActivities(extracted, year, month)` ออกมาเป็นฟังก์ชันกลาง ให้ทั้งปุ่ม
+     "บันทึกทั้งหมด" ใน `showOcrReviewModal` และ `trySilentSync` เรียกใช้ร่วมกัน (ไม่ fork match/save logic)
+   - **ทดสอบผ่าน browser automation ได้แค่บางส่วน**: ยืนยันแล้วว่า `'showOpenFilePicker' in window` เป็น `true` และ
+     ไม่มี error จากการ wiring (build/test ผ่านหมด) แต่ **ไม่สามารถทดสอบ flow เลือกไฟล์จริงผ่าน automation ได้**
+     เพราะ `showOpenFilePicker()` บังคับ real user gesture ตามสเปก (ยืนยันแล้วว่าเรียกนอก gesture context จะได้
+     `SecurityError` ทันที ไม่ใช่ hang) — **พี่ A ต้องทดสอบ flow "ตั้งค่า Auto-Sync" + auto-sync จริงเองในเบราว์เซอร์ปกติ**
 
 ## งานค้าง / สิ่งที่ควรรู้ก่อนพัฒนาต่อ
 
-- **Lotus Notes Bridge**: Phase A + Phase B **เสร็จสมบูรณ์ทั้งคู่แล้ว** (2569-08-22) — Phase A ยืนยัน tally ถูกต้องกับ
-  หน้าจอ Notes จริงแล้ว, Phase B ทดสอบผ่านเบราว์เซอร์จริงแล้วด้วย CSV สังเคราะห์ (synthetic) — **ยังไม่เคยทดสอบ
-  end-to-end ด้วยไฟล์ CSV จริงที่ script export ออกมา** (รันแบบเต็ม ไม่มี `-DryRun`) แล้วนำเข้าเว็บแอปจริง — ขั้นต่อไป
-  คือรัน `.\export-kaizen-from-notes.cmd -Year 2026 -Month 7` (ไม่มี `-DryRun`, ปิด Notes client ก่อนรันเสมอ) ได้ไฟล์ที่
-  `Documents\KaizenExport\kaizen_export.csv` แล้วนำเข้าผ่านปุ่ม "นำเข้าจาก Lotus Notes (CSV)" ในแอปจริง
+- **Lotus Notes Bridge Phase C ยังไม่ได้ทดสอบจริงจากพี่ A**: (1) ยังไม่ได้กด "ตั้งค่า Auto-Sync" จริงเพื่อยืนยันว่า
+  `showOpenFilePicker` เปิด native dialog ได้จริงบนเครื่องพี่ A และเลือกไฟล์ได้ (2) ยังไม่ได้ทดสอบว่าเปิดแอปซ้ำแล้ว
+  auto-sync จริงโดยไม่ต้องกดอะไร (3) ยังไม่ได้รัน `tools/setup-scheduled-export.ps1` จริงเพื่อสร้าง Scheduled Task
+  (4) ยังไม่ได้ทดสอบเปิด `dist/index.html` ตรงๆ ผ่าน `file://` (double-click) ว่า IndexedDB/File System Access API
+  ทำงานถูกต้องหรือไม่ — แนะนำให้ทดสอบตามลำดับนี้ก่อนพึ่งพา automation เต็มรูปแบบ
 
 - ฟิลด์ `annualTarget` รายบุคคลในข้อมูลพนักงานยังไม่ถูกใช้งานจริง (ผู้ใช้ยืนยันว่าทุกคนใช้เป้าหมายรวมเดียวกัน)
   หากในอนาคตต้องการเปลี่ยนเป็นเป้าหมายรายคน จะต้องแก้จุดคำนวณ % ความคืบหน้าในหลายฟังก์ชัน

@@ -57,3 +57,22 @@ export function parseKaizenCsv(text) {
     }
     return { rows, warnings };
 }
+
+// The PowerShell export writes Date as "MM/YYYY" (one CSV = one target month).
+// Used by the silent auto-sync path, which has no year/month <select> to read from.
+export function parsePeriodFromDate(dateStr) {
+    const m = /^(\d{1,2})\/(\d{4})$/.exec((dateStr || '').trim());
+    if (!m) return null;
+    const month = parseInt(m[1], 10);
+    const year = parseInt(m[2], 10);
+    if (month < 1 || month > 12) return null;
+    return { year, month };
+}
+
+export function getPeriodFromRows(rows) {
+    for (const r of rows) {
+        const period = parsePeriodFromDate(r.date);
+        if (period) return period;
+    }
+    return null;
+}

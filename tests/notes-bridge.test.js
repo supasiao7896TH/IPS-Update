@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseKaizenCsv } from '../src/modules/notes-bridge.js';
+import { parseKaizenCsv, parsePeriodFromDate, getPeriodFromRows } from '../src/modules/notes-bridge.js';
 
 const CRLF = '\r\n';
 
@@ -46,5 +46,33 @@ describe('parseKaizenCsv', () => {
     const { rows, warnings } = parseKaizenCsv(csv);
     expect(rows).toEqual([]);
     expect(warnings.length).toBeGreaterThan(0);
+  });
+});
+
+describe('parsePeriodFromDate', () => {
+  it('parses the MM/YYYY format written by export-kaizen-from-notes.ps1', () => {
+    expect(parsePeriodFromDate('07/2026')).toEqual({ year: 2026, month: 7 });
+    expect(parsePeriodFromDate('12/2025')).toEqual({ year: 2025, month: 12 });
+  });
+
+  it('returns null for an unrecognized or empty date string', () => {
+    expect(parsePeriodFromDate('')).toBeNull();
+    expect(parsePeriodFromDate('not a date')).toBeNull();
+    expect(parsePeriodFromDate('13/2026')).toBeNull();
+  });
+});
+
+describe('getPeriodFromRows', () => {
+  it('derives {year, month} from the first row with a parseable date', () => {
+    const rows = [
+      { name: 'A', department: 'PE1', count: 1, date: '07/2026' },
+      { name: 'B', department: 'PE1', count: 2, date: '07/2026' },
+    ];
+    expect(getPeriodFromRows(rows)).toEqual({ year: 2026, month: 7 });
+  });
+
+  it('returns null when no row has a usable date', () => {
+    expect(getPeriodFromRows([{ name: 'A', department: '', count: 1, date: '' }])).toBeNull();
+    expect(getPeriodFromRows([])).toBeNull();
   });
 });

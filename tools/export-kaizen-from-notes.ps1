@@ -21,7 +21,8 @@
 param(
     [switch]$DryRun,
     [int]$Year  = (Get-Date).Year,
-    [int]$Month = (Get-Date).Month
+    [int]$Month = (Get-Date).Month,
+    [string]$OutputPath = (Join-Path $env:USERPROFILE 'Documents\KaizenExport\kaizen_export.csv')
 )
 
 # ── Config — values confirmed by the user from their Lotus Notes client ──
@@ -29,9 +30,19 @@ $ServerHint  = '5pta6lotus'
 $ReplicaId   = '47256F1D:0006F32C'
 $ViewName    = 'Improvement\By Section'
 $Department  = 'PE1'
-$OutputDir   = Join-Path $env:USERPROFILE 'Documents\KaizenExport'
-$OutputPath  = Join-Path $OutputDir 'kaizen_export.csv'
+$OutputDir   = Split-Path $OutputPath -Parent
+$LogPath     = Join-Path $OutputDir 'export_log.txt'
 $DryRunRows  = 15
+
+function Write-RunLog($status, $detail) {
+    try {
+        if (-not (Test-Path $OutputDir)) { New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null }
+        $line = "{0}  {1}  {2}" -f (Get-Date -Format 's'), $status, $detail
+        Add-Content -Path $LogPath -Value $line -Encoding UTF8
+    } catch {
+        # Logging must never crash the actual export -- swallow any log-write failure.
+    }
+}
 
 function Write-Info($msg)  { Write-Host $msg -ForegroundColor Cyan }
 function Write-Ok($msg)    { Write-Host $msg -ForegroundColor Green }
@@ -59,6 +70,7 @@ if (-not $session) {
     Write-Err2 "Tried ProgIDs: $($progIdsTried -join ', ')"
     Write-Err2 "This usually means Lotus/IBM/HCL Notes is not installed on this PC,"
     Write-Err2 "or corporate IT policy blocks COM automation of Notes."
+    if (-not $DryRun) { Write-RunLog 'FAIL' 'could not create Notes COM session object' }
     exit 1
 }
 
@@ -94,6 +106,7 @@ if (-not $initialized) {
         Write-Ok "  -> Initialize() succeeded with manual password"
     } catch {
         Write-Err2 "FAILED to initialize Notes session even with manual password: $($_.Exception.Message)"
+        if (-not $DryRun) { Write-RunLog 'FAIL' "Initialize() failed: $($_.Exception.Message)" }
         exit 1
     }
 }
@@ -129,6 +142,7 @@ if (-not $db) {
     Write-Err2 "FAILED: could not open database with Replica ID $ReplicaId"
     Write-Err2 "(tried both with and without the ':' separator) via server '$ServerHint' or a local replica."
     Write-Err2 "Verify the Replica ID and that this PC has network/replica access to that database."
+    if (-not $DryRun) { Write-RunLog 'FAIL' 'could not open database (replica ID / server unreachable)' }
     exit 1
 }
 
@@ -154,6 +168,7 @@ if (-not $view) {
         Write-Err2 "  -> could not enumerate views: $($_.Exception.Message)"
     }
     Write-Err2 "FAILED: update `$ViewName` in this script to the correct value from the list above and re-run."
+    if (-not $DryRun) { Write-RunLog 'FAIL' "view '$ViewName' not found" }
     exit 1
 }
 
@@ -260,3 +275,5 @@ try {
 Write-Ok ""
 Write-Ok "Done. Wrote $($tally.Count) row(s) to:"
 Write-Ok "  $OutputPath"
+
+Write-RunLog 'SUCCESS' "Department=$Department Year=$Year Month=$Month rows=$($tally.Count)"

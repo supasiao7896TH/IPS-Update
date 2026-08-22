@@ -9,6 +9,7 @@ import { UI_RENDERER } from './modules/ui-renderer.js';
 import { buildDomCache } from './modules/dom-cache.js';
 import { escHtml } from './modules/utils.js';
 import * as NOTES_BRIDGE from './modules/notes-bridge.js';
+import * as FS_SYNC from './modules/fs-sync.js';
 
         // ─── APP_CORE — init, event binding/handlers, CRUD orchestration ────
         const APP_CORE = (() => {
@@ -75,6 +76,12 @@ import * as NOTES_BRIDGE from './modules/notes-bridge.js';
                 bindAll();
 
                 AUTH_PROVIDER.signInAnonymously().catch(err => DEBUG_MODULE.log('info', 'AUTH_PROVIDER', err.message));
+
+                FS_SYNC.trySilentSync(saveExtractedActivities).then(result => {
+                    if (!result) return;
+                    const mName = APP_CONFIG.fullMonthNames[result.month - 1];
+                    UI_RENDERER.showNotification(`ซิงก์จาก Lotus Notes อัตโนมัติ: ${result.saved} คน (${mName} ${result.year})`, 'success');
+                }).catch(err => DEBUG_MODULE.log('error', 'FS_SYNC', err));
             }
 
             // ─── CRUD wrappers using STATE_STORE.optimisticUpdate ───
@@ -104,6 +111,7 @@ import * as NOTES_BRIDGE from './modules/notes-bridge.js';
                 dom.reportTable.addEventListener('click', handleTableActions);
                 dom.ocrImportBtn.addEventListener('click', () => handleOcrImportClick());
                 dom.notesCsvImportBtn.addEventListener('click', () => handleNotesCsvImportClick());
+                dom.setupAutoSyncBtn.addEventListener('click', () => handleSetupAutoSyncClick());
                 dom.generateEmailBtn.addEventListener('click', () => handleGenerateEmailClick());
                 dom.exportReportBtn.addEventListener('click', () => handleExportReportClick());
                 dom.exportEmailBannerBtn.addEventListener('click', () => handleExportEmailBannerClick());
@@ -470,6 +478,28 @@ import * as NOTES_BRIDGE from './modules/notes-bridge.js';
                 });
             }
 
+            // Shared save path for {name, count}[] regardless of source (OCR review-modal
+            // "save" button, or the silent Lotus Notes auto-sync) -- matches by name, upserts
+            // into activities, persists via STATE_STORE.optimisticUpdate. Kept in one place so
+            // both callers get the same behavior and any future fix applies to both at once.
+            async function saveExtractedActivities(extracted, year, month) {
+                const activities = [...STATE_STORE.get('activities')];
+                let saved = 0, unmatched = 0;
+                extracted.forEach(item => {
+                    const employee = GEMINI_AI_BRIDGE.matchEmployeeByName(item.name);
+                    if (!employee) { unmatched++; return; }
+                    const cnt = typeof item.count === 'number' ? item.count : parseInt(item.count, 10);
+                    if (isNaN(cnt) || cnt < 0) return;
+                    const eid = employee.id;
+                    const idx = activities.findIndex(x => x.employeeId === eid && x.year === year && x.month === month);
+                    if (idx >= 0) activities[idx] = { ...activities[idx], count: cnt };
+                    else activities.push({ employeeId: eid, year, month, count: cnt });
+                    saved++;
+                });
+                await STATE_STORE.optimisticUpdate('activities', activities, STORAGE_ENGINE.saveActivities);
+                return { saved, unmatched, total: extracted.length };
+            }
+
             function showOcrReviewModal(extracted, year, month, originalTrigger) {
                 const mName = APP_CONFIG.fullMonthNames[month-1];
                 const rows  = extracted.map(item => ({
@@ -525,22 +555,17 @@ import * as NOTES_BRIDGE from './modules/notes-bridge.js';
                         UI_RENDERER.closeModal(originalTrigger); return;
                     }
                     if (a==='save') {
-                        const activities = [...STATE_STORE.get('activities')];
-                        let saved=0;
+                        const editedExtracted = [];
                         modal.querySelectorAll('.ocr-cnt:not([disabled])').forEach(inp => {
                             const row = rows[parseInt(inp.dataset.idx,10)];
                             if (!row?.employee) return;
                             const cnt = parseInt(inp.value,10);
                             if (isNaN(cnt)||cnt<0) return;
-                            const eid = row.employee.id;
-                            const idx = activities.findIndex(x=>x.employeeId===eid&&x.year===year&&x.month===month);
-                            if (idx>=0) activities[idx] = {...activities[idx], count:cnt};
-                            else activities.push({employeeId:eid,year,month,count:cnt});
-                            saved++;
+                            editedExtracted.push({ name: row.src, count: cnt });
                         });
                         try {
-                            await STATE_STORE.optimisticUpdate('activities', activities, STORAGE_ENGINE.saveActivities);
-                            UI_RENDERER.showNotification(`บันทึกข้อมูล ${saved} คนสำเร็จ!`,'success');
+                            const result = await saveExtractedActivities(editedExtracted, year, month);
+                            UI_RENDERER.showNotification(`บันทึกข้อมูล ${result.saved} คนสำเร็จ!`,'success');
                         } catch(err) {}
                         UI_RENDERER.closeModal(originalTrigger);
                     }
@@ -627,6 +652,22 @@ import * as NOTES_BRIDGE from './modules/notes-bridge.js';
                         showOcrReviewModal(extracted, year, month, trigger);
                     }
                 });
+            }
+
+            // ── Lotus Notes Auto-Sync setup (one-time file permission grant) ──
+            async function handleSetupAutoSyncClick() {
+                if (!FS_SYNC.isSupported()) {
+                    UI_RENDERER.showNotification('เบราว์เซอร์นี้ไม่รองรับ Auto-Sync (ต้องใช้ Chrome หรือ Edge) — ใช้ปุ่ม "นำเข้าจาก Lotus Notes (CSV)" แทนได้','error');
+                    return;
+                }
+                try {
+                    await FS_SYNC.setupAutoSync();
+                    UI_RENDERER.showNotification('ตั้งค่า Auto-Sync สำเร็จ! เปิดแอปครั้งต่อไปจะดึงข้อมูลจากไฟล์นี้ให้อัตโนมัติ','success');
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return; // user closed the file picker
+                    DEBUG_MODULE.log('error', 'FS_SYNC', err);
+                    UI_RENDERER.showNotification(`ตั้งค่า Auto-Sync ไม่สำเร็จ: ${err.message}`,'error');
+                }
             }
 
             // ── Export JSON / Export standalone HTML ───────────────────────

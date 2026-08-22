@@ -33,13 +33,31 @@ src/
     ├── auth-provider.js          — AUTH_PROVIDER (scaffold)
     ├── cloud-sync-manager.js     — CLOUD_SYNC_MANAGER (scaffold)
     ├── ui-renderer.js            — UI_RENDERER
-    └── notes-bridge.js           — parseKaizenCsv() — CSV parser สำหรับ Lotus Notes Bridge (ดู tools/export-kaizen-from-notes.ps1)
+    ├── notes-bridge.js           — parseKaizenCsv(), parsePeriodFromDate(), getPeriodFromRows() — CSV parsing
+    │                                for the Lotus Notes Bridge (ดู tools/export-kaizen-from-notes.ps1)
+    └── fs-sync.js                — File System Access API auto-sync (Chrome/Edge only) — อ่าน CSV เดิมซ้ำๆ
+                                     แบบไม่ต้องเลือกไฟล์ใหม่ทุกครั้ง หลังผู้ใช้กด "ตั้งค่า Auto-Sync" ครั้งแรก
 ```
 
-**Lotus Notes Bridge**: ปุ่ม "นำเข้าจาก Lotus Notes (CSV)" ใน `index.html` + `handleNotesCsvImportClick()` ใน
-`src/main.js` เป็นทางเลือกแทนปุ่ม OCR (Gemini) เดิมสำหรับกรณีมีไฟล์ CSV จาก `tools/export-kaizen-from-notes.ps1` —
-ทั้งสอง flow **reuse `showOcrReviewModal` ตัวเดียวกัน** (รับแค่ `extracted: {name, count}[]` ไม่สนใจที่มา) ห้าม fork
-ฟังก์ชันนี้เป็น 2 ชุด ถ้าจะปรับ UI/logic ของหน้า review ให้แก้ที่เดียวแล้วมีผลกับทั้ง 2 ทางเข้า
+**Lotus Notes Bridge**: มี 2 ทางเข้า ทั้งคู่จบที่ `saveExtractedActivities(extracted, year, month)` ใน `src/main.js`
+(match ชื่อผ่าน `GEMINI_AI_BRIDGE.matchEmployeeByName`, upsert เข้า `activities`, persist ผ่าน `STATE_STORE.optimisticUpdate`)
+— **ห้าม fork logic นี้เป็นหลายชุด** ถ้าจะแก้พฤติกรรม match/save ให้แก้ที่ `saveExtractedActivities` ที่เดียว:
+1. **ปุ่ม "นำเข้าจาก Lotus Notes (CSV)"** (`handleNotesCsvImportClick()`) — มี modal ให้เลือกไฟล์ + review ก่อนกด
+   "บันทึกทั้งหมด" (เรียก `showOcrReviewModal`, ใช้ modal เดียวกับปุ่ม OCR Gemini เดิม รับแค่ `{name, count}[]`)
+2. **ปุ่ม "ตั้งค่า Auto-Sync จาก Lotus Notes"** (`handleSetupAutoSyncClick()` → `FS_SYNC.setupAutoSync()`) — ให้สิทธิ์
+   อ่านไฟล์ CSV ที่แน่นอนไว้ครั้งเดียว (`showOpenFilePicker()`, เก็บ `FileSystemFileHandle` ใน IndexedDB
+   `settings` store คีย์ `notesCsvHandle`) แล้วทุกครั้งที่เปิดแอป `FS_SYNC.trySilentSync()` (เรียกจาก `APP_CORE.init()`)
+   จะเช็ค `file.lastModified` เทียบกับ `notesCsvLastSyncedAt` ที่เคยบันทึกไว้ — ถ้าไฟล์ใหม่กว่าจะ parse + บันทึก
+   **ทันทีโดยไม่มี modal/การยืนยัน** (ตามที่ผู้ใช้เลือกไว้ชัดเจน แลกกับความเสี่ยงที่ไม่มี review step) แล้วขึ้น toast
+   สรุปผลแบบไม่บล็อก — ปีปละเดือนของข้อมูลดึงจากคอลัมน์ `Date` ในไฟล์เอง (format `MM/YYYY`) ผ่าน `getPeriodFromRows()`
+   เพราะ path นี้ไม่มี modal ให้เลือกปี/เดือนแบบ manual
+   - `showOpenFilePicker()`/`requestPermission()` **ต้องมี user gesture จริง** ถึงจะทำงาน — เรียกจาก `init()` (ไม่มี
+     gesture) จะได้แค่ `queryPermission()` ที่เคย granted ไว้แล้วเท่านั้น ถ้าสิทธิ์หมดอายุ (เช่น หลัง restart browser
+     บาง config) ผู้ใช้ต้องกด "ตั้งค่า Auto-Sync" ใหม่อีกครั้ง — เป็น fallback ที่ตั้งใจไว้ ไม่ใช่บั๊ก
+   - **ทดสอบผ่าน browser automation ไม่ได้เต็มรูปแบบ**: `showOpenFilePicker()` บังคับ real user gesture, CDP-driven
+     คลิกอาจนับหรือไม่นับเป็น gesture แล้วแต่ browser/เวอร์ชัน — ต้องให้ผู้ใช้ทดสอบ flow เลือกไฟล์เองจริงๆ ในเบราว์เซอร์
+     ปกติเท่านั้น (ยืนยันแล้วว่า `'showOpenFilePicker' in window` เป็น `true` และเรียกตรงๆ นอก user gesture context
+     จะได้ `SecurityError` ทันที ตามที่สเปกกำหนด — ไม่ใช่ hang หรือ error จากโค้ดเรา)
 
 แต่ละไฟล์ export ตัวแปรเดียวชื่อเดียวกับ module เดิม (`export const APP_CONFIG = ...`) แล้ว import กันข้ามไฟล์ตามที่ใช้จริง
 **หมายเหตุ circular import**: STATE_STORE ↔ CLOUD_SYNC_MANAGER ↔ UI_RENDERER และ STORAGE_ENGINE ↔ GEMINI_AI_BRIDGE

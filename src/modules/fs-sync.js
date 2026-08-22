@@ -6,6 +6,7 @@ function logSkip(reason) { DEBUG_MODULE.log('info', 'FS_SYNC', `skipped: ${reaso
 
 const HANDLE_KEY = 'notesCsvHandle';
 const LAST_SYNCED_KEY = 'notesCsvLastSyncedAt';
+const LAST_SYNCED_PERIOD_KEY = 'notesCsvLastSyncedPeriod';
 
 export function isSupported() {
     return typeof window !== 'undefined' && 'showOpenFilePicker' in window;
@@ -48,8 +49,29 @@ async function performSync(handle, saveExtractedActivities) {
     const result = await saveExtractedActivities(extracted, period.year, period.month);
 
     await STORAGE_ENGINE.put('settings', { key: LAST_SYNCED_KEY, value: file.lastModified });
+    await STORAGE_ENGINE.put('settings', { key: LAST_SYNCED_PERIOD_KEY, value: { year: period.year, month: period.month } });
 
     return { ...result, year: period.year, month: period.month, fileName: file.name };
+}
+
+// Used by the web app to decide how to present the "Auto-Sync" button: never set
+// up, set up but this calendar month not synced yet (needs a nudge), or already
+// synced for the current month. Compares the stored last-synced period against
+// the real current date -- NOT against the CSV's own Date column -- so the
+// reminder is tied to "have I synced since this month started", independent of
+// whatever month the last CSV happened to cover.
+export async function getSyncStatus() {
+    const hasHandle = await hasStoredHandle();
+    if (!hasHandle) return { hasHandle: false, isCurrentMonthSynced: false };
+
+    const rec = await STORAGE_ENGINE.get('settings', LAST_SYNCED_PERIOD_KEY);
+    const now = new Date();
+    const isCurrentMonthSynced = !!(
+        rec && rec.value &&
+        rec.value.year === now.getFullYear() &&
+        rec.value.month === now.getMonth() + 1
+    );
+    return { hasHandle: true, isCurrentMonthSynced };
 }
 
 // Called automatically on every app load, with NO user gesture available.

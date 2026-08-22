@@ -77,11 +77,14 @@ import * as FS_SYNC from './modules/fs-sync.js';
 
                 AUTH_PROVIDER.signInAnonymously().catch(err => DEBUG_MODULE.log('info', 'AUTH_PROVIDER', err.message));
 
+                refreshAutoSyncButtonState();
                 FS_SYNC.trySilentSync(saveExtractedActivities).then(result => {
-                    if (!result) return;
-                    const mName = APP_CONFIG.fullMonthNames[result.month - 1];
-                    UI_RENDERER.showNotification(`ซิงก์จาก Lotus Notes อัตโนมัติ: ${result.saved} คน (${mName} ${result.year})`, 'success');
-                }).catch(err => DEBUG_MODULE.log('error', 'FS_SYNC', err));
+                    if (result) {
+                        const mName = APP_CONFIG.fullMonthNames[result.month - 1];
+                        UI_RENDERER.showNotification(`ซิงก์จาก Lotus Notes อัตโนมัติ: ${result.saved} คน (${mName} ${result.year})`, 'success');
+                    }
+                    refreshAutoSyncButtonState();
+                }).catch(err => { DEBUG_MODULE.log('error', 'FS_SYNC', err); refreshAutoSyncButtonState(); });
             }
 
             // ─── CRUD wrappers using STATE_STORE.optimisticUpdate ───
@@ -654,6 +657,26 @@ import * as FS_SYNC from './modules/fs-sync.js';
                 });
             }
 
+            // Reflects Auto-Sync state directly on the button itself (not just a toast, which
+            // is easy to miss) -- never set up / set up but this month not synced yet (amber
+            // warning, stays until fixed) / already synced this month (green).
+            async function refreshAutoSyncButtonState() {
+                const btn = _domCache.setupAutoSyncBtn;
+                if (!btn) return;
+                const status = await FS_SYNC.getSyncStatus();
+                if (!status.hasHandle) {
+                    btn.className = 'w-full flex items-center justify-center gap-1.5 text-cyan-700 text-xs font-medium py-1 hover:underline';
+                    btn.innerHTML = '<i data-lucide="refresh-cw" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>Auto-Sync จาก Lotus Notes (กดทุกครั้งที่เปิดแอป)';
+                } else if (!status.isCurrentMonthSynced) {
+                    btn.className = 'w-full flex items-center justify-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-300 rounded-md text-xs font-semibold py-1.5';
+                    btn.innerHTML = '<i data-lucide="triangle-alert" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>ยังไม่ซิงก์ข้อมูลเดือนนี้ — คลิกเพื่อซิงก์';
+                } else {
+                    btn.className = 'w-full flex items-center justify-center gap-1.5 text-green-700 text-xs font-medium py-1';
+                    btn.innerHTML = '<i data-lucide="circle-check" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>ซิงก์ข้อมูลเดือนนี้แล้ว (คลิกเพื่อซิงก์ซ้ำ)';
+                }
+                if (window.lucide) lucide.createIcons();
+            }
+
             // ── Lotus Notes Auto-Sync setup / resume (needs a real click every session —
             // browsers do not persist File System Access permission across a page reload) ──
             async function handleSetupAutoSyncClick() {
@@ -675,6 +698,7 @@ import * as FS_SYNC from './modules/fs-sync.js';
                         await FS_SYNC.setupAutoSync();
                         UI_RENDERER.showNotification('ตั้งค่า Auto-Sync สำเร็จ! กดปุ่มนี้อีกครั้งทุกครั้งที่เปิดแอปใหม่เพื่อซิงก์ (ไม่ต้องเลือกไฟล์ซ้ำ)','success');
                     }
+                    await refreshAutoSyncButtonState();
                 } catch (err) {
                     if (err && err.name === 'AbortError') return; // user closed the file picker
                     DEBUG_MODULE.log('error', 'FS_SYNC', err);

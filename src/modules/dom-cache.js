@@ -24,6 +24,7 @@ export function buildDomCache() {
                 ocrImportBtn:          document.getElementById('ocr-import-btn'),
                 notesCsvImportBtn:     document.getElementById('notes-csv-import-btn'),
                 setupAutoSyncBtn:      document.getElementById('setup-auto-sync-btn'),
+                resetAutoSyncBtn:      document.getElementById('reset-auto-sync-btn'),
                 generateEmailBtn:      document.getElementById('generate-email-btn'),
                 exportReportBtn:       document.getElementById('export-report-btn'),
                 exportEmailBannerBtn:  document.getElementById('export-email-banner-btn'),

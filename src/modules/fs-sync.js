@@ -24,12 +24,26 @@ export async function setupAutoSync() {
     });
     await STORAGE_ENGINE.put('settings', { key: HANDLE_KEY, value: handle });
     await STORAGE_ENGINE.put('settings', { key: LAST_SYNCED_KEY, value: 0 });
+    await STORAGE_ENGINE.put('settings', { key: LAST_SYNCED_PERIOD_KEY, value: null });
     return handle;
 }
 
 export async function hasStoredHandle() {
     const rec = await STORAGE_ENGINE.get('settings', HANDLE_KEY);
     return !!(rec && rec.value);
+}
+
+// Manual escape hatch for "the remembered file is wrong/stale" (confirmed
+// on-site: a handle can keep silently resolving to an old file -- e.g. an
+// OneDrive-churned path -- with no error at all, so there was previously no
+// way to make the app forget it and point the picker at a new file). Clears
+// everything setupAutoSync() writes, not just the handle, so the very next
+// "ตั้งค่า Auto-Sync" click goes through the picker fresh instead of resuming
+// against stale dedup state.
+export async function resetAutoSync() {
+    await STORAGE_ENGINE.put('settings', { key: HANDLE_KEY, value: null });
+    await STORAGE_ENGINE.put('settings', { key: LAST_SYNCED_KEY, value: 0 });
+    await STORAGE_ENGINE.put('settings', { key: LAST_SYNCED_PERIOD_KEY, value: null });
 }
 
 // The stored handle can go stale even though it once worked: the export script
@@ -42,7 +56,10 @@ export async function hasStoredHandle() {
 // re-opening the CSV import modal) fall through to the file-picker flow again,
 // instead of failing the same way forever with no way to recover.
 async function forgetStaleHandle() {
-    await STORAGE_ENGINE.put('settings', { key: HANDLE_KEY, value: null });
+    // Also clears the dedup timestamp/period, not just the handle -- otherwise
+    // a later fresh pick could inherit a stale lastSyncedAt from the broken
+    // handle's history and wrongly report "nothing new" against the new file.
+    await resetAutoSync();
 }
 
 async function performSync(handle, saveExtractedActivities) {
@@ -73,24 +90,36 @@ async function performSync(handle, saveExtractedActivities) {
     return { ...result, year: period.year, month: period.month, fileName: file.name };
 }
 
+// The real-world routine this automates (confirmed by the user) always closes
+// out the PREVIOUS calendar month, whatever day it's run on: a day-5 pull in
+// September always means "September's report = August's tally", never the
+// still-in-progress current month -- same rule as export-kaizen-from-notes.ps1's
+// own -Year/-Month defaults. Sync-status checks must compare against this same
+// rolling "previous month" target, not the literal current calendar month, or
+// the button would stay stuck amber forever right after a correct sync.
+function getExpectedPeriod(now = new Date()) {
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return { year: prev.getFullYear(), month: prev.getMonth() + 1 };
+}
+
 // Used by the web app to decide how to present the "Auto-Sync" button: never set
-// up, set up but this calendar month not synced yet (needs a nudge), or already
-// synced for the current month. Compares the stored last-synced period against
-// the real current date -- NOT against the CSV's own Date column -- so the
-// reminder is tied to "have I synced since this month started", independent of
-// whatever month the last CSV happened to cover.
+// up, set up but the expected (last-closed) month not synced yet (needs a
+// nudge), or already synced for that month. Compares the stored last-synced
+// period against getExpectedPeriod() -- NOT against the CSV's own Date column --
+// so the reminder is tied to "have I synced the month this routine expects",
+// independent of whatever month the last CSV happened to cover.
 export async function getSyncStatus() {
     const hasHandle = await hasStoredHandle();
-    if (!hasHandle) return { hasHandle: false, isCurrentMonthSynced: false };
+    const expectedPeriod = getExpectedPeriod();
+    if (!hasHandle) return { hasHandle: false, isExpectedPeriodSynced: false, expectedPeriod };
 
     const rec = await STORAGE_ENGINE.get('settings', LAST_SYNCED_PERIOD_KEY);
-    const now = new Date();
-    const isCurrentMonthSynced = !!(
+    const isExpectedPeriodSynced = !!(
         rec && rec.value &&
-        rec.value.year === now.getFullYear() &&
-        rec.value.month === now.getMonth() + 1
+        rec.value.year === expectedPeriod.year &&
+        rec.value.month === expectedPeriod.month
     );
-    return { hasHandle: true, isCurrentMonthSynced };
+    return { hasHandle: true, isExpectedPeriodSynced, expectedPeriod };
 }
 
 // Called automatically on every app load, with NO user gesture available.

@@ -115,6 +115,7 @@ import * as FS_SYNC from './modules/fs-sync.js';
                 dom.ocrImportBtn.addEventListener('click', () => handleOcrImportClick());
                 dom.notesCsvImportBtn.addEventListener('click', () => handleNotesCsvImportClick());
                 dom.setupAutoSyncBtn.addEventListener('click', () => handleSetupAutoSyncClick());
+                dom.resetAutoSyncBtn.addEventListener('click', () => handleResetAutoSyncClick());
                 dom.generateEmailBtn.addEventListener('click', () => handleGenerateEmailClick());
                 dom.exportReportBtn.addEventListener('click', () => handleExportReportClick());
                 dom.exportEmailBannerBtn.addEventListener('click', () => handleExportEmailBannerClick());
@@ -699,15 +700,16 @@ import * as FS_SYNC from './modules/fs-sync.js';
                 const btn = _domCache.setupAutoSyncBtn;
                 if (!btn) return;
                 const status = await FS_SYNC.getSyncStatus();
+                const expectedMonthName = APP_CONFIG.fullMonthNames[status.expectedPeriod.month - 1];
                 if (!status.hasHandle) {
                     btn.className = 'w-full flex items-center justify-center gap-1.5 text-cyan-700 text-xs font-medium py-1 hover:underline';
                     btn.innerHTML = '<i data-lucide="refresh-cw" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>Auto-Sync จาก Lotus Notes (กดทุกครั้งที่เปิดแอป)';
-                } else if (!status.isCurrentMonthSynced) {
+                } else if (!status.isExpectedPeriodSynced) {
                     btn.className = 'w-full flex items-center justify-center gap-1.5 text-amber-700 bg-amber-50 border border-amber-300 rounded-md text-xs font-semibold py-1.5';
-                    btn.innerHTML = '<i data-lucide="triangle-alert" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>ยังไม่ซิงก์ข้อมูลเดือนนี้ — คลิกเพื่อซิงก์';
+                    btn.innerHTML = `<i data-lucide="triangle-alert" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>ยังไม่ซิงก์ข้อมูลเดือน${escHtml(expectedMonthName)} — คลิกเพื่อซิงก์`;
                 } else {
                     btn.className = 'w-full flex items-center justify-center gap-1.5 text-green-700 text-xs font-medium py-1';
-                    btn.innerHTML = '<i data-lucide="circle-check" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>ซิงก์ข้อมูลเดือนนี้แล้ว (คลิกเพื่อซิงก์ซ้ำ)';
+                    btn.innerHTML = `<i data-lucide="circle-check" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i>ซิงก์ข้อมูลเดือน${escHtml(expectedMonthName)}แล้ว (คลิกเพื่อซิงก์ซ้ำ)`;
                 }
                 if (window.lucide) lucide.createIcons();
             }
@@ -739,6 +741,15 @@ import * as FS_SYNC from './modules/fs-sync.js';
                     DEBUG_MODULE.log('error', 'FS_SYNC', err);
                     UI_RENDERER.showNotification(`Auto-Sync ไม่สำเร็จ: ${err.message}`,'error');
                 }
+            }
+
+            // Escape hatch for "the remembered file is wrong/stale, and clicking
+            // Auto-Sync just keeps silently resolving to it" -- clears the stored
+            // handle + dedup state, then immediately re-opens the file picker so
+            // the user can point it at the correct file in one click.
+            async function handleResetAutoSyncClick() {
+                await FS_SYNC.resetAutoSync();
+                await handleSetupAutoSyncClick();
             }
 
             // ── Export JSON / Export standalone HTML ───────────────────────

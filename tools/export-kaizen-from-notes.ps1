@@ -16,19 +16,29 @@
         powershell -ExecutionPolicy Bypass -File export-kaizen-from-notes.ps1
         powershell -ExecutionPolicy Bypass -File export-kaizen-from-notes.ps1 -DryRun -Year 2026 -Month 7
     (or just double-click export-kaizen-from-notes.cmd)
+
+    -Year/-Month default to LAST calendar month, not this one: the real
+    workflow this automates is a day-5-of-the-month close-out (confirmed by
+    the user), where "day 5 of September" always means "September's report
+    covers August's submissions" -- never the still-in-progress current
+    month. Pass -Year/-Month explicitly to override for an ad hoc pull of a
+    different month.
 #>
 
 param(
     [switch]$DryRun,
-    [int]$Year  = (Get-Date).Year,
-    [int]$Month = (Get-Date).Month,
+    [int]$Year  = (Get-Date).AddMonths(-1).Year,
+    [int]$Month = (Get-Date).AddMonths(-1).Month,
     # NOT under Documents: on this PC Documents is OneDrive Known-Folder-Move
     # redirected, and OneDrive's sync engine churns files there (confirmed
     # on-site: the exported CSV disappeared from disk minutes after being
     # written, which invalidated the web app's stored file handle with a
-    # NotFoundError). %LOCALAPPDATA% is never subject to Known Folder Move,
-    # even under corporate OneDrive policy, so files there stay purely local.
-    [string]$OutputPath = (Join-Path $env:LOCALAPPDATA 'KaizenExport\kaizen_export.csv')
+    # NotFoundError). %USERPROFILE%\KaizenExport (a plain folder directly under
+    # the user's profile root, not one of the specific named folders OneDrive's
+    # Known Folder Move redirects) stays purely local like %LOCALAPPDATA% would,
+    # but -- unlike %LOCALAPPDATA% -- isn't a hidden system folder, so it's easy
+    # to find in Explorer and to navigate to from the browser's file picker.
+    [string]$OutputPath = (Join-Path $env:USERPROFILE 'KaizenExport\kaizen_export.csv')
 )
 
 # ── Config — values confirmed by the user from their Lotus Notes client ──

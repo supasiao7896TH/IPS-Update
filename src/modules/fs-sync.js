@@ -32,8 +32,27 @@ export async function hasStoredHandle() {
     return !!(rec && rec.value);
 }
 
+// The stored handle can go stale even though it once worked: the export script
+// rewrites kaizen_export.csv in place on every run, and on this machine
+// Documents is OneDrive-synced -- OneDrive's sync engine can replace a file via
+// delete+recreate under the hood instead of a true in-place write, which some
+// browsers surface as a NotFoundError on the OLD handle's getFile() (confirmed
+// on-site: file existed on disk with a fresh mtime, yet getFile() still threw).
+// Forgetting the handle here is what lets the next "ตั้งค่า Auto-Sync" click (or
+// re-opening the CSV import modal) fall through to the file-picker flow again,
+// instead of failing the same way forever with no way to recover.
+async function forgetStaleHandle() {
+    await STORAGE_ENGINE.put('settings', { key: HANDLE_KEY, value: null });
+}
+
 async function performSync(handle, saveExtractedActivities) {
-    const file = await handle.getFile();
+    let file;
+    try {
+        file = await handle.getFile();
+    } catch (err) {
+        await forgetStaleHandle();
+        throw new Error('ไฟล์ที่เคยเลือกไว้เข้าถึงไม่ได้แล้ว (อาจถูกสร้างใหม่ทับระหว่างซิงก์) — กรุณากด "ตั้งค่า Auto-Sync" เพื่อเลือกไฟล์ใหม่อีกครั้ง');
+    }
     const lastSyncedRec = await STORAGE_ENGINE.get('settings', LAST_SYNCED_KEY);
     const lastSyncedAt = lastSyncedRec ? lastSyncedRec.value : 0;
     if (file.lastModified <= lastSyncedAt) { logSkip(`file not newer (file.lastModified=${file.lastModified}, lastSyncedAt=${lastSyncedAt})`); return null; }
@@ -116,4 +135,30 @@ export async function resumeSync(saveExtractedActivities) {
         throw new Error('ไม่ได้รับอนุญาตให้เข้าถึงไฟล์');
     }
     return await performSync(handle, saveExtractedActivities);
+}
+
+// Used by the "นำเข้าจาก Lotus Notes (CSV)" review-modal flow: opening that modal
+// is itself a real click, so requestPermission() is safe to call directly here
+// (unlike trySilentSync()'s init()-time check) -- lets that modal auto-load the
+// same remembered file with no drag-drop/browse step, while still going through
+// its own review-before-save screen (unlike the silent resumeSync() path above).
+// Returns null (never throws) if there's no stored handle yet or the file can't
+// be read, so callers can cleanly fall back to the manual drag-drop UI.
+export async function readFileForModal() {
+    const handleRec = await STORAGE_ENGINE.get('settings', HANDLE_KEY);
+    if (!handleRec || !handleRec.value) return null;
+    const handle = handleRec.value;
+
+    try {
+        const perm = await handle.requestPermission({ mode: 'read' });
+        if (perm !== 'granted') return null;
+
+        const file = await handle.getFile();
+        const text = await file.text();
+        return { text, name: file.name, lastModified: file.lastModified };
+    } catch (err) {
+        DEBUG_MODULE.log('error', 'FS_SYNC', err);
+        await forgetStaleHandle();
+        return null;
+    }
 }

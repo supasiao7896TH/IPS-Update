@@ -603,6 +603,7 @@ import * as FS_SYNC from './modules/fs-sync.js';
                             <div id="notes-csv-prev" class="mt-2 hidden text-center">
                                 <p class="text-xs text-green-600 mt-1"><i data-lucide="circle-check" class="inline-block" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i> <span id="notes-csv-prev-name"></span> พร้อมนำเข้า</p>
                             </div>
+                            <button type="button" id="notes-csv-setup-link" class="hidden mt-2 text-cyan-700 text-xs font-medium hover:underline">หรือกด Auto-Sync เพื่อไม่ต้องเลือกไฟล์ครั้งต่อไป</button>
                         </div>
                     </div>`,
                     actions: [
@@ -630,11 +631,45 @@ import * as FS_SYNC from './modules/fs-sync.js';
 
                 const drop = modal.querySelector('#notes-csv-drop');
                 const fi   = modal.querySelector('#notes-csv-file');
+                const setupLink = modal.querySelector('#notes-csv-setup-link');
                 drop.addEventListener('click', ()=>fi.click());
                 drop.addEventListener('dragover', e=>{e.preventDefault(); drop.classList.add('border-cyan-400','bg-cyan-50');});
                 drop.addEventListener('dragleave', ()=>drop.classList.remove('border-cyan-400','bg-cyan-50'));
                 drop.addEventListener('drop', async e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f){ setPreview(await readFile(f), f.name); } });
                 fi.addEventListener('change', async e=>{ const f=e.target.files[0]; if(f){ setPreview(await readFile(f), f.name); } });
+                setupLink.addEventListener('click', async () => {
+                    await handleSetupAutoSyncClick();
+                    if (await FS_SYNC.hasStoredHandle()) { setupLink.classList.add('hidden'); await tryAutoLoad(); }
+                });
+
+                // Reuses the same stored FileSystemFileHandle as the "Auto-Sync" button --
+                // opening this modal is itself a real click, so requestPermission() works
+                // here without needing that separate button pressed first. Falls back to
+                // the manual drag-drop UI (already rendered above) on any failure, silently.
+                const tryAutoLoad = async () => {
+                    const loaded = await FS_SYNC.readFileForModal();
+                    if (!loaded) return false;
+                    const { rows } = NOTES_BRIDGE.parseKaizenCsv(loaded.text);
+                    const period = NOTES_BRIDGE.getPeriodFromRows(rows);
+                    if (period) {
+                        modal.querySelector('#notes-csv-year').value  = period.year;
+                        modal.querySelector('#notes-csv-month').value = period.month;
+                    }
+                    setPreview(loaded.text, loaded.name);
+                    return true;
+                };
+                (async () => {
+                    if (await FS_SYNC.hasStoredHandle()) {
+                        const ok = await tryAutoLoad();
+                        if (!ok) {
+                            UI_RENDERER.showNotification('โหลดไฟล์ Auto-Sync อัตโนมัติไม่สำเร็จ — กรุณาเลือกไฟล์ CSV เอง หรือกด Auto-Sync ใหม่อีกครั้ง', 'info');
+                            setupLink.classList.remove('hidden');
+                            await refreshAutoSyncButtonState();
+                        }
+                    } else {
+                        setupLink.classList.remove('hidden');
+                    }
+                })();
 
                 modal.addEventListener('click', async e => {
                     const a = e.target.dataset.action;

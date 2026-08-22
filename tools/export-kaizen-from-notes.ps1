@@ -22,7 +22,13 @@ param(
     [switch]$DryRun,
     [int]$Year  = (Get-Date).Year,
     [int]$Month = (Get-Date).Month,
-    [string]$OutputPath = (Join-Path $env:USERPROFILE 'Documents\KaizenExport\kaizen_export.csv')
+    # NOT under Documents: on this PC Documents is OneDrive Known-Folder-Move
+    # redirected, and OneDrive's sync engine churns files there (confirmed
+    # on-site: the exported CSV disappeared from disk minutes after being
+    # written, which invalidated the web app's stored file handle with a
+    # NotFoundError). %LOCALAPPDATA% is never subject to Known Folder Move,
+    # even under corporate OneDrive policy, so files there stay purely local.
+    [string]$OutputPath = (Join-Path $env:LOCALAPPDATA 'KaizenExport\kaizen_export.csv')
 )
 
 # ── Config — values confirmed by the user from their Lotus Notes client ──

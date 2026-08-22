@@ -35,4 +35,18 @@ browser security sandbox ไม่ใช่ปัญหาที่แก้ด�
    export CSV อยู่แล้ว) แล้วเรียก email-sending API (เช่น Resend/SendGrid) ส่งเอง — ตัด Make.com ออกไปเลยได้ เพราะทำเอง
    บน Cloudflare Workers free tier ก็พอ ไม่ต้องเสียค่า subscription Make.com สำหรับงานที่ backend เล็กๆ ทำเองได้
 
-**ยังไม่ตัดสินใจ/ยังไม่เริ่มทำอะไร** — รอพี่ A เลือกทางที่ถูกใจก่อนเริ่ม implement
+**อัปเดต (2569-08-22 เย็น)**: พี่ A เลือกทางเลือกที่ 1 แล้ว — **"เพิ่ม mailto: prefill ให้เลย"** — หนูอธิบายให้ฟังก่อนว่า
+`mailto:` คือลิงก์พิเศษที่สั่งเปิดโปรแกรมอีเมล default ของเครื่อง พร้อมกรอก subject/body ให้ล่วงหน้า (ผ่าน query string
+เช่น `mailto:?subject=...&body=...`) — **ข้อจำกัดสำคัญ: แนบรูปภาพไม่ได้** (เป็นข้อจำกัดของมาตรฐาน mailto: เอง) ดังนั้น
+จะช่วยตัดแค่ขั้นตอน "เขียนอีเมล" ส่วน "Email Banner" (รูปภาพ) พี่ A ยังต้อง copy-paste รูปเองเหมือนเดิม — พี่ A รับทราบและ
+ขอให้เริ่มทำ **พรุ่งนี้**
+
+### งานที่รอทำต่อ (พรุ่งนี้): เพิ่มปุ่ม/ลิงก์ mailto: prefill
+
+**ขอบเขต**: แก้ที่ปุ่ม "สร้างสรุปอีเมล" (`handleGenerateEmailClick` ใน `src/main.js`, เรียก
+`UI_RENDERER.generateEmailSummary(...)` เพื่อสร้างข้อความอยู่แล้ว) — เพิ่มทางเลือกใหม่ให้เปิด
+`mailto:?subject=...&body=...` (encode ด้วย `encodeURIComponent`) แทน/คู่กับปุ่ม copy ข้อความเดิม (ปุ่ม copy เดิมน่าจะ
+เก็บไว้เป็น fallback เพราะบาง client ตัดข้อความยาวเกิน ~2000 ตัวอักษร) — **ยังไม่ได้ตกลงรายละเอียด UI ว่าจะเป็นปุ่มแยก
+หรือเปลี่ยนปุ่มเดิม ต้องคุยกับพี่ A ก่อนเริ่มเขียนโค้ด** ตามกติกา Blueprint → รออนุมัติ
+- ไม่กระทบปุ่ม "ส่งออก Email Banner"/`handleCopyBannerImage` เลย (รูปภาพยังคง copy-paste มือเหมือนเดิม)
+- Critical file: `src/main.js` (ฟังก์ชัน `handleGenerateEmailClick` และ modal action handler ของมัน)

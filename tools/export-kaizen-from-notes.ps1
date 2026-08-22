@@ -159,7 +159,10 @@ Write-Info "[4/4] Reading entries$(if ($DryRun) { ' (DRY RUN — printing raw da
 
 $rows = New-Object System.Collections.Generic.List[Object]
 $currentCategory = ''
-$entry = $view.GetFirstEntry()
+# NotesView.GetFirstEntry()/GetNextEntry() aren't exposed via COM automation on this
+# Notes version -- the older, COM-compatible way is via the AllEntries collection instead.
+$entries = $view.AllEntries
+$entry = $entries.GetFirstEntry()
 $printed = 0
 
 while ($entry -ne $null) {
@@ -195,7 +198,7 @@ while ($entry -ne $null) {
         }
     }
 
-    $entry = $view.GetNextEntry($entry)
+    $entry = $entries.GetNextEntry($entry)
 }
 
 Write-Ok "  -> read $($rows.Count) document row(s), category label seen: '$currentCategory'"

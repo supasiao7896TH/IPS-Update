@@ -1,28 +1,34 @@
 <#
     export-kaizen-from-notes.ps1
 
-    Phase A spike: connect to Lotus Notes via COM automation and export the
-    "Individual Kaizen - Improvement \ By Section" view to a CSV that the
-    Kaizen Activity Tracker web app can import (Phase B, not built yet).
+    Connect to Lotus Notes via COM automation, read the "Improvement\By
+    Section" view (a flat list of individual Kaizen submissions -- one row
+    per idea, NOT pre-aggregated), filter it down to one department and one
+    month, tally how many rows each employee has, and write that tally out
+    as a CSV the Kaizen Activity Tracker web app can import (Phase B).
 
     This script does NOT touch index.html. Run it standalone first with
-    -DryRun and manually confirm the printed column mapping matches what you
-    see on screen in Lotus Notes before ever trusting the CSV output.
+    -DryRun and manually confirm the printed tally matches what you see on
+    screen in Lotus Notes before ever trusting the CSV output.
 
     Usage:
         powershell -ExecutionPolicy Bypass -File export-kaizen-from-notes.ps1 -DryRun
         powershell -ExecutionPolicy Bypass -File export-kaizen-from-notes.ps1
+        powershell -ExecutionPolicy Bypass -File export-kaizen-from-notes.ps1 -DryRun -Year 2026 -Month 7
     (or just double-click export-kaizen-from-notes.cmd)
 #>
 
 param(
-    [switch]$DryRun
+    [switch]$DryRun,
+    [int]$Year  = (Get-Date).Year,
+    [int]$Month = (Get-Date).Month
 )
 
 # ── Config — values confirmed by the user from their Lotus Notes client ──
 $ServerHint  = '5pta6lotus'
 $ReplicaId   = '47256F1D:0006F32C'
 $ViewName    = 'Improvement\By Section'
+$Department  = 'PE1'
 $OutputDir   = Join-Path $env:USERPROFILE 'Documents\KaizenExport'
 $OutputPath  = Join-Path $OutputDir 'kaizen_export.csv'
 $DryRunRows  = 15
@@ -154,45 +160,47 @@ if (-not $view) {
 Write-Ok "  -> view opened successfully"
 $view.AutoUpdate = $false
 
-# ── Step 4: walk entries, handle categorized (grouped) rows ───────────────
-Write-Info "[4/4] Reading entries$(if ($DryRun) { ' (DRY RUN — printing raw data, not writing CSV)' })..."
+# ── Step 4: walk entries, filter to one department + month, tally by name ──
+# This view is a flat list of individual Kaizen submissions (one row per idea),
+# not a pre-aggregated "employee + count" summary -- confirmed via -DryRun on
+# real data. Column layout (confirmed, positional -- no internal field names
+# available via COM): [0]=Department code, [1]=Year, [2]=Month, [4]=Employee
+# full name. Status ([6]) is intentionally NOT filtered -- every submission
+# counts regardless of approval state, per the user's confirmed business rule.
+Write-Info "[4/4] Reading entries for Department=$Department, Year=$Year, Month=$Month$(if ($DryRun) { ' (DRY RUN)' })..."
 
-$rows = New-Object System.Collections.Generic.List[Object]
-$currentCategory = ''
+$tally = [ordered]@{}
 # NotesView.GetFirstEntry()/GetNextEntry() aren't exposed via COM automation on this
 # Notes version -- the older, COM-compatible way is via the AllEntries collection instead.
 $entries = $view.AllEntries
 $entry = $entries.GetFirstEntry()
 $printed = 0
+$totalSeen = 0
+$matchedCount = 0
 
 while ($entry -ne $null) {
     $colVals = $entry.ColumnValues
+    $totalSeen++
 
-    if ($DryRun -and $printed -lt $DryRunRows) {
-        $valsDump = @()
-        for ($i = 0; $i -lt $colVals.Count; $i++) {
-            $v = $colVals.Item($i)
-            $t = if ($null -eq $v) { 'null' } else { $v.GetType().Name }
-            $valsDump += "[$i]=$v ($t)"
-        }
-        Write-Host "  entry#$printed IsCategory=$($entry.IsCategory) Indent=$($entry.Indent) -- $($valsDump -join ' | ')"
-        $printed++
-    }
-
-    if ($entry.IsCategory) {
-        # Category header row -- first column value is typically the group label (department).
-        try { $currentCategory = [string]$colVals.Item(0) } catch { }
-    } else {
+    if (-not $entry.IsCategory) {
         try {
-            $name  = [string]$colVals.Item(0)
-            $count = $colVals.Item(1)
-            $date  = $colVals.Item(2)
-            $rows.Add([PSCustomObject]@{
-                EmployeeName = $name
-                Department   = $currentCategory
-                Count        = $count
-                Date         = $date
-            })
+            $dept = ([string]$colVals.Item(0)).Trim()
+            $yr   = [int]$colVals.Item(1)
+            $mo   = [int]$colVals.Item(2)
+            $name = ([string]$colVals.Item(4)).Trim()
+
+            $isMatch = ($dept -eq $Department) -and ($yr -eq $Year) -and ($mo -eq $Month)
+
+            if ($DryRun -and $printed -lt $DryRunRows) {
+                Write-Host "  entry#$printed Dept=$dept Year=$yr Month=$mo Name=$name $(if ($isMatch) { '<== MATCH' })"
+                $printed++
+            }
+
+            if ($isMatch -and $name) {
+                $matchedCount++
+                if ($tally.Contains($name)) { $tally[$name] = $tally[$name] + 1 }
+                else { $tally[$name] = 1 }
+            }
         } catch {
             Write-Warn2 "  -> skipped one entry, could not read ColumnValues: $($_.Exception.Message)"
         }
@@ -201,17 +209,23 @@ while ($entry -ne $null) {
     $entry = $entries.GetNextEntry($entry)
 }
 
-Write-Ok "  -> read $($rows.Count) document row(s), category label seen: '$currentCategory'"
+Write-Ok "  -> scanned $totalSeen entries; $matchedCount matched Department=$Department Year=$Year Month=$Month"
+Write-Ok "  -> $($tally.Count) distinct employee(s) in that tally"
 
 if ($DryRun) {
     Write-Info ""
+    Write-Info "Per-employee tally for Department=$Department, Year=$Year, Month=${Month}:"
+    if ($tally.Count -eq 0) {
+        Write-Warn2 "  (none -- check Department/Year/Month above against the raw entries printed earlier)"
+    } else {
+        foreach ($k in $tally.Keys) { Write-Host ("  {0,-30} {1}" -f $k, $tally[$k]) }
+    }
+    Write-Info ""
     Write-Info "DRY RUN complete. Nothing was written to disk."
-    Write-Info "Compare the printed values above against what you see on screen in Lotus Notes:"
-    Write-Info "  - Is column [0] really the employee name?"
-    Write-Info "  - Is column [1] really the Count?"
-    Write-Info "  - Is column [2] really the Date, and is IsCategory correctly marking department headers?"
+    Write-Info "Compare the tally above against what you see on screen in Lotus Notes for this department/month."
+    Write-Info "Also sanity-check the raw entries printed above: Dept/Year/Month/Name should read correctly."
     Write-Info "If anything is off, adjust the column indices in this script (search for 'colVals.Item')"
-    Write-Info "and re-run -DryRun until the mapping is confirmed correct."
+    Write-Info "and re-run -DryRun until the tally is confirmed correct."
     exit 0
 }
 
@@ -227,14 +241,15 @@ function CsvQuote($value) {
 
 $utf8Bom = New-Object System.Text.UTF8Encoding($true)
 $writer = New-Object System.IO.StreamWriter($OutputPath, $false, $utf8Bom)
+$dateLabel = "{0:D2}/{1}" -f $Month, $Year
 try {
     $writer.WriteLine('EmployeeName,Department,Count,Date')
-    foreach ($r in $rows) {
+    foreach ($name in $tally.Keys) {
         $line = @(
-            (CsvQuote $r.EmployeeName),
-            (CsvQuote $r.Department),
-            (CsvQuote $r.Count),
-            (CsvQuote $r.Date)
+            (CsvQuote $name),
+            (CsvQuote $Department),
+            (CsvQuote $tally[$name]),
+            (CsvQuote $dateLabel)
         ) -join ','
         $writer.WriteLine($line)
     }
@@ -243,5 +258,5 @@ try {
 }
 
 Write-Ok ""
-Write-Ok "Done. Wrote $($rows.Count) row(s) to:"
+Write-Ok "Done. Wrote $($tally.Count) row(s) to:"
 Write-Ok "  $OutputPath"

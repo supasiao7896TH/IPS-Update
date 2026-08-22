@@ -106,19 +106,29 @@ Bridge Phase A — ดู "งานค้าง" ด้านล่าง)
      ที่ **reuse `showOcrReviewModal` เดิมตรงๆ ไม่ fork** (ตามหลักการเดิมที่วางไว้ตั้งแต่ Phase A) — ทดสอบผ่านเบราว์เซอร์จริง
      แล้วว่า upload CSV ตัวอย่าง → fuzzy match พนักงานถูกต้อง → บันทึกลง IndexedDB → ตาราง/กราฟ/podium อัปเดตถูกต้อง
    - ปุ่ม OCR (Gemini) เดิมและฟีเจอร์ export standalone HTML ยืนยันแล้วว่ายังทำงานปกติ ไม่ถูกกระทบ
-   - **แก้บั๊ก Phase A**: ทดสอบ `-DryRun` จริงที่เครื่องทำงานเจอ 2 ปัญหา — (1) `The ID file is locked by another
-     process` เพราะ Lotus Notes client เปิดค้างอยู่ ยึด lock ไฟล์ ID (แก้โดยปิด Notes client ก่อนรัน script ไม่ใช่บั๊ก
-     ของ script) และ (2) `Invalid replica id` เพราะ Notes แสดง Replica ID แบบมี `:` คั่น แต่ `OpenDatabaseByReplicaID`
-     ต้องการสตริง 16 hex ติดกัน — แก้ `tools/export-kaizen-from-notes.ps1` ให้ลองทั้ง 2 รูปแบบอัตโนมัติแล้ว
-     **ยังไม่ได้รัน `-DryRun` ซ้ำเพื่อยืนยันว่าแก้ปัญหาที่ 2 ได้จริง** — ดู "งานค้าง" ด้านล่าง
+   - **แก้บั๊ก Phase A ระหว่างทดสอบจริงที่เครื่องทำงาน (3 รอบ)**:
+     1. `The ID file is locked by another process` — Lotus Notes client (desktop app) เปิดค้างอยู่ ยึด lock ไฟล์ ID
+        (วิธีแก้: ปิด Notes client ให้สนิทก่อนรัน script ทุกครั้ง — ไม่ใช่บั๊กของ script)
+     2. `Invalid replica id` — Notes แสดง Replica ID แบบมี `:` คั่น แต่ `OpenDatabaseByReplicaID()` ต้องการสตริง 16
+        hex ติดกันไม่มี `:` — แก้ให้ลองทั้ง 2 รูปแบบอัตโนมัติ
+     3. `does not contain a method named 'GetFirstEntry'` — COM automation ไม่รองรับ `NotesView.GetFirstEntry()`/
+        `GetNextEntry()` ตรงๆ (มีแค่ใน LotusScript เต็มรูปแบบ) — แก้ให้เรียกผ่าน `NotesView.AllEntries` (collection)
+        แทน ซึ่งเป็นวิธีเก่ากว่าที่ COM รองรับ
+   - **View `Improvement\By Section` ไม่ใช่ตารางสรุปแบบที่คาดไว้ตอนแรก** — เป็นรายการ Kaizen 1 แถวต่อ 1 เรื่องที่ส่งเข้ามา
+     ไม่มีคอลัมน์ไหนเก็บ "จำนวนรวมต่อคน" ไว้ตรงๆ ต้อง filter (Department/Year/Month) + นับจำนวนแถวเอง (tally) แทน —
+     คอลัมน์จริงที่ยืนยันแล้ว: `[0]`=รหัสแผนก, `[1]`=ปี, `[2]`=เดือน, `[4]`=ชื่อพนักงานเต็ม (ดู `tools/export-kaizen-from-notes.ps1`
+     สำหรับ mapping เต็ม) — Business rule ที่พี่ A ยืนยัน: นับทุกสถานะ (ไม่กรอง col `[6]`), กรองเฉพาะแผนกตัวเอง `PE1`
+   - **Phase A ยืนยันเสร็จสมบูรณ์แล้ว (2569-08-22)**: `-DryRun -Year 2026 -Month 7` สแกน 48,256 entries เจอ 63 แถว
+     ตรงเงื่อนไข (PE1/2026/7) จาก 27 คน พี่ A เทียบกับหน้าจอ Lotus Notes จริงแล้วว่าตรง (เช่น Thanan Srephophan=6,
+     Supasit Aoothai=5, Sittichai Klaidaeng=4) — ชื่อพนักงานที่ได้ตรงกับ roster ในแอปเป๊ะ
 
 ## งานค้าง / สิ่งที่ควรรู้ก่อนพัฒนาต่อ
 
-- **Lotus Notes Bridge**: โค้ดฝั่ง Web App (Phase B) เสร็จและทดสอบผ่านแล้วด้วย CSV ตัวอย่างที่สร้างขึ้นเอง (ตรงตาม
-  format ที่ script ควร export) — **แต่ยังไม่เคยทดสอบกับไฟล์ CSV จริงที่ export จาก Lotus Notes จริง** เพราะ Phase A
-  (`tools/export-kaizen-from-notes.ps1`) เพิ่งแก้บั๊ก replica-ID-format ไป ยังไม่ได้รัน `-DryRun` ซ้ำที่เครื่องทำงานเพื่อ
-  ยืนยันว่าเปิด database/view ได้จริงและ column mapping ถูกต้อง — ขั้นต่อไปคือพี่ A รัน `.\export-kaizen-from-notes.cmd
-  -DryRun` อีกครั้ง (ปิด Lotus Notes client ก่อนรันเสมอ กัน "ID file is locked") แล้วเทียบ output กับหน้าจอจริง
+- **Lotus Notes Bridge**: Phase A + Phase B **เสร็จสมบูรณ์ทั้งคู่แล้ว** (2569-08-22) — Phase A ยืนยัน tally ถูกต้องกับ
+  หน้าจอ Notes จริงแล้ว, Phase B ทดสอบผ่านเบราว์เซอร์จริงแล้วด้วย CSV สังเคราะห์ (synthetic) — **ยังไม่เคยทดสอบ
+  end-to-end ด้วยไฟล์ CSV จริงที่ script export ออกมา** (รันแบบเต็ม ไม่มี `-DryRun`) แล้วนำเข้าเว็บแอปจริง — ขั้นต่อไป
+  คือรัน `.\export-kaizen-from-notes.cmd -Year 2026 -Month 7` (ไม่มี `-DryRun`, ปิด Notes client ก่อนรันเสมอ) ได้ไฟล์ที่
+  `Documents\KaizenExport\kaizen_export.csv` แล้วนำเข้าผ่านปุ่ม "นำเข้าจาก Lotus Notes (CSV)" ในแอปจริง
 
 - ฟิลด์ `annualTarget` รายบุคคลในข้อมูลพนักงานยังไม่ถูกใช้งานจริง (ผู้ใช้ยืนยันว่าทุกคนใช้เป้าหมายรวมเดียวกัน)
   หากในอนาคตต้องการเปลี่ยนเป็นเป้าหมายรายคน จะต้องแก้จุดคำนวณ % ความคืบหน้าในหลายฟังก์ชัน

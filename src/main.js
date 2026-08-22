@@ -654,19 +654,31 @@ import * as FS_SYNC from './modules/fs-sync.js';
                 });
             }
 
-            // ── Lotus Notes Auto-Sync setup (one-time file permission grant) ──
+            // ── Lotus Notes Auto-Sync setup / resume (needs a real click every session —
+            // browsers do not persist File System Access permission across a page reload) ──
             async function handleSetupAutoSyncClick() {
                 if (!FS_SYNC.isSupported()) {
                     UI_RENDERER.showNotification('เบราว์เซอร์นี้ไม่รองรับ Auto-Sync (ต้องใช้ Chrome หรือ Edge) — ใช้ปุ่ม "นำเข้าจาก Lotus Notes (CSV)" แทนได้','error');
                     return;
                 }
                 try {
-                    await FS_SYNC.setupAutoSync();
-                    UI_RENDERER.showNotification('ตั้งค่า Auto-Sync สำเร็จ! เปิดแอปครั้งต่อไปจะดึงข้อมูลจากไฟล์นี้ให้อัตโนมัติ','success');
+                    const alreadySetUp = await FS_SYNC.hasStoredHandle();
+                    if (alreadySetUp) {
+                        const result = await FS_SYNC.resumeSync(saveExtractedActivities);
+                        if (result) {
+                            const mName = APP_CONFIG.fullMonthNames[result.month - 1];
+                            UI_RENDERER.showNotification(`ซิงก์จาก Lotus Notes สำเร็จ: ${result.saved} คน (${mName} ${result.year})`,'success');
+                        } else {
+                            UI_RENDERER.showNotification('เชื่อมต่อ Auto-Sync แล้ว — ไม่มีข้อมูลใหม่ให้ซิงก์ตอนนี้','info');
+                        }
+                    } else {
+                        await FS_SYNC.setupAutoSync();
+                        UI_RENDERER.showNotification('ตั้งค่า Auto-Sync สำเร็จ! กดปุ่มนี้อีกครั้งทุกครั้งที่เปิดแอปใหม่เพื่อซิงก์ (ไม่ต้องเลือกไฟล์ซ้ำ)','success');
+                    }
                 } catch (err) {
                     if (err && err.name === 'AbortError') return; // user closed the file picker
                     DEBUG_MODULE.log('error', 'FS_SYNC', err);
-                    UI_RENDERER.showNotification(`ตั้งค่า Auto-Sync ไม่สำเร็จ: ${err.message}`,'error');
+                    UI_RENDERER.showNotification(`Auto-Sync ไม่สำเร็จ: ${err.message}`,'error');
                 }
             }
 

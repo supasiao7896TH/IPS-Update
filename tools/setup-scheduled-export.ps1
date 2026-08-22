@@ -2,27 +2,34 @@
     setup-scheduled-export.ps1
 
     One-time setup: registers a Windows Scheduled Task (current user, no
-    admin rights needed) that runs export-kaizen-from-notes.ps1 automatically
-    every day at a fixed time, without -DryRun.
+    admin rights or password needed) that runs export-kaizen-from-notes.ps1
+    automatically once a month, without -DryRun.
 
-    Run this ONCE. Re-run it any time to change the scheduled time (it
-    replaces the existing task of the same name).
+    Registered to run ONLY when you are logged on to Windows on this PC (the
+    safer default) -- this matters because this PC is shared with other
+    employees' Windows logins:
+      - If you are NOT logged in on the scheduled day, the task simply does
+        not run that month (no error, no interference with anyone else's
+        session on this PC) -- you'd just run the export manually next time
+        you're in, or wait for next month's trigger.
+      - We deliberately do NOT use "run whether logged on or not" -- that
+        needs your Windows password stored with the task, and Lotus Notes
+        COM automation has only ever worked here by reusing an already
+        logged-in, unlocked interactive Notes session -- a non-interactive
+        background run would have no such session to reuse and would likely
+        hang waiting for a password prompt nobody is there to answer.
 
-    IMPORTANT: if Lotus Notes client happens to be open when the scheduled
-    time hits, that day's run will fail (see the "ID file is locked" issue
-    documented in export-kaizen-from-notes.ps1) -- but it fails safely: the
-    existing CSV file is left untouched, so the web app just keeps using
-    yesterday's data until the next successful run. Check export_log.txt in
-    the same folder as the CSV to see the real success/failure history and
-    adjust -Time below if scheduled runs keep failing.
+    Run this ONCE. Re-run it any time to change the day/time (it replaces
+    the existing task of the same name).
 
     Usage:
         powershell -ExecutionPolicy Bypass -File setup-scheduled-export.ps1
-        powershell -ExecutionPolicy Bypass -File setup-scheduled-export.ps1 -Time "06:45"
+        powershell -ExecutionPolicy Bypass -File setup-scheduled-export.ps1 -Day 5 -Time "07:30"
     (or just double-click setup-scheduled-export.cmd)
 #>
 
 param(
+    [int]$Day = 5,
     [string]$Time = '07:30'
 )
 
@@ -38,26 +45,33 @@ if (-not (Test-Path $ScriptPath)) {
     Write-Err2 "FAILED: could not find export-kaizen-from-notes.ps1 next to this setup script."
     exit 1
 }
+if ($Day -lt 1 -or $Day -gt 28) {
+    Write-Err2 "FAILED: -Day must be between 1 and 28 (days 29-31 don't exist in every month)."
+    exit 1
+}
 
-Write-Info "Registering scheduled task '$TaskName' to run daily at $Time..."
+Write-Info "Registering scheduled task '$TaskName' to run monthly on day $Day at $Time..."
+Write-Info "(only while you are logged on to Windows on this PC -- see the comment header in this script for why)"
+
+# schtasks.exe (not Register-ScheduledTask -- that cmdlet has no built-in monthly-day
+# trigger) supports /SC MONTHLY /D <day> directly. Omitting /RU and /RP registers the
+# task under the current user with an interactive logon type: no password needed, and
+# it only runs while that user is logged on -- exactly the safer behavior we want.
+$taskRun = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
 
 try {
-    $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ScriptPath`""
+    & schtasks.exe /Create /TN $TaskName /TR $taskRun /SC MONTHLY /D $Day /ST $Time /F
+    if ($LASTEXITCODE -ne 0) { throw "schtasks.exe exited with code $LASTEXITCODE" }
 
-    $trigger = New-ScheduledTaskTrigger -Daily -At $Time
-
-    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-
-    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
-        -Description 'Exports this month''s Kaizen tally from Lotus Notes for the Kaizen Activity Tracker web app.' `
-        -Force | Out-Null
-
-    Write-Ok "Done. Task '$TaskName' will run daily at $Time."
-    Write-Ok "It calls: powershell.exe -File `"$ScriptPath`" (no -DryRun, current year/month by default)"
+    Write-Ok ""
+    Write-Ok "Done. Task '$TaskName' will run on day $Day of every month at $Time,"
+    Write-Ok "but ONLY while you are logged on to Windows on this PC."
     Write-Info ""
+    Write-Info "If you're not at work / not logged in that day, that month's export just won't run"
+    Write-Info "(no error, nothing breaks) -- run '.\export-kaizen-from-notes.cmd' manually when"
+    Write-Info "you're back, or just wait for next month's trigger."
     Write-Info "Reminder: if Lotus Notes client is open at $Time, that day's run will fail safely (old CSV kept)."
-    Write-Info "Check the export_log.txt file next to kaizen_export.csv to see the real success/failure history."
+    Write-Info "Check export_log.txt next to kaizen_export.csv to see the real success/failure history."
     Write-Info "You can also see/edit this task any time in Windows 'Task Scheduler' under Task Scheduler Library."
 } catch {
     Write-Err2 "FAILED to register scheduled task: $($_.Exception.Message)"

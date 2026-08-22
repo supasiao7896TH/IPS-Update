@@ -93,29 +93,36 @@ if (-not $initialized) {
 }
 
 # ── Step 2: open the database (server replica, fallback to local replica) ─
+# Notes displays the Replica ID with a ':' separator for readability (e.g. 47256F1D:0006F32C),
+# but OpenDatabaseByReplicaID() expects the 16 hex chars with no separator. Try both forms.
+$ReplicaIdNoColon = $ReplicaId -replace ':', ''
 Write-Info "[2/4] Opening database (Replica ID $ReplicaId)..."
 
 $db = $null
 foreach ($serverAttempt in @($ServerHint, '')) {
-    try {
-        $label = if ($serverAttempt -eq '') { 'local replica' } else { "server '$serverAttempt'" }
-        Write-Info "  -> trying $label..."
-        $dbDir = $session.GetDbDirectory($serverAttempt)
-        $candidate = $dbDir.OpenDatabaseByReplicaID($ReplicaId)
-        if ($candidate -and $candidate.IsOpen) {
-            $db = $candidate
-            Write-Ok "  -> opened via $label"
-            break
+    foreach ($ridAttempt in @($ReplicaId, $ReplicaIdNoColon)) {
+        try {
+            $serverLabel = if ($serverAttempt -eq '') { 'local replica' } else { "server '$serverAttempt'" }
+            $ridLabel    = if ($ridAttempt -eq $ReplicaId) { 'with colon' } else { 'no colon' }
+            Write-Info "  -> trying $serverLabel, replica id $ridLabel ($ridAttempt)..."
+            $dbDir = $session.GetDbDirectory($serverAttempt)
+            $candidate = $dbDir.OpenDatabaseByReplicaID($ridAttempt)
+            if ($candidate -and $candidate.IsOpen) {
+                $db = $candidate
+                Write-Ok "  -> opened via $serverLabel, replica id $ridLabel"
+                break
+            }
+        } catch {
+            Write-Warn2 "  -> failed via $serverLabel, replica id $ridLabel`: $($_.Exception.Message)"
         }
-    } catch {
-        Write-Warn2 "  -> failed via $label`: $($_.Exception.Message)"
     }
+    if ($db) { break }
 }
 
 if (-not $db) {
     Write-Err2 "FAILED: could not open database with Replica ID $ReplicaId"
-    Write-Err2 "via server '$ServerHint' or a local replica. Verify the Replica ID"
-    Write-Err2 "and that this PC has network/replica access to that database."
+    Write-Err2 "(tried both with and without the ':' separator) via server '$ServerHint' or a local replica."
+    Write-Err2 "Verify the Replica ID and that this PC has network/replica access to that database."
     exit 1
 }
 

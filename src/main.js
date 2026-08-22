@@ -8,6 +8,7 @@ import { AUTH_PROVIDER } from './modules/auth-provider.js';
 import { UI_RENDERER } from './modules/ui-renderer.js';
 import { buildDomCache } from './modules/dom-cache.js';
 import { escHtml } from './modules/utils.js';
+import * as NOTES_BRIDGE from './modules/notes-bridge.js';
 
         // ─── APP_CORE — init, event binding/handlers, CRUD orchestration ────
         const APP_CORE = (() => {
@@ -102,6 +103,7 @@ import { escHtml } from './modules/utils.js';
                 dom.importFileInput.addEventListener('change', handleImportFileSelect);
                 dom.reportTable.addEventListener('click', handleTableActions);
                 dom.ocrImportBtn.addEventListener('click', () => handleOcrImportClick());
+                dom.notesCsvImportBtn.addEventListener('click', () => handleNotesCsvImportClick());
                 dom.generateEmailBtn.addEventListener('click', () => handleGenerateEmailClick());
                 dom.exportReportBtn.addEventListener('click', () => handleExportReportClick());
                 dom.exportEmailBannerBtn.addEventListener('click', () => handleExportEmailBannerClick());
@@ -541,6 +543,88 @@ import { escHtml } from './modules/utils.js';
                             UI_RENDERER.showNotification(`บันทึกข้อมูล ${saved} คนสำเร็จ!`,'success');
                         } catch(err) {}
                         UI_RENDERER.closeModal(originalTrigger);
+                    }
+                });
+            }
+
+            // ── Lotus Notes CSV Import (Phase B of the PowerShell/COM bridge) ─
+            function handleNotesCsvImportClick() {
+                const trigger  = _domCache.notesCsvImportBtn;
+                const currentYear = STATE_STORE.get('currentYear');
+                const currentMonth = STATE_STORE.get('currentMonth');
+
+                let yo=''; for(let i=currentYear+5;i>=currentYear-5;i--) yo+=`<option value="${i}">${i}</option>`;
+                const mo = APP_CONFIG.fullMonthNames.map((n,i)=>`<option value="${i+1}">${escHtml(n)}</option>`).join('');
+
+                const modal = UI_RENDERER.showModal({
+                    title: '<i data-lucide="file-spreadsheet" class="mr-2 inline-block" aria-hidden="true"></i> นำเข้าจาก Lotus Notes (CSV)',
+                    body: `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label for="notes-csv-year" class="block text-sm font-medium text-gray-700 mb-1">ปี</label><select id="notes-csv-year" class="w-full p-2 border rounded-md">${yo}</select></div>
+                            <div><label for="notes-csv-month" class="block text-sm font-medium text-gray-700 mb-1">เดือน</label><select id="notes-csv-month" class="w-full p-2 border rounded-md">${mo}</select></div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">แนบไฟล์ CSV</label>
+                            <div id="notes-csv-drop" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-cyan-400 hover:bg-cyan-50 transition">
+                                <i data-lucide="cloud-upload" class="text-4xl text-gray-300 mb-2 inline-block" style="width:2.5rem;height:2.5rem;" aria-hidden="true"></i>
+                                <p class="text-gray-500 text-sm font-medium">คลิกหรือลากไฟล์ CSV มาวาง</p>
+                                <p class="text-gray-400 text-xs mt-1">ไฟล์ที่ export จาก export-kaizen-from-notes.ps1</p>
+                            </div>
+                            <input type="file" id="notes-csv-file" accept=".csv,text/csv" class="hidden">
+                            <div id="notes-csv-prev" class="mt-2 hidden text-center">
+                                <p class="text-xs text-green-600 mt-1"><i data-lucide="circle-check" class="inline-block" style="width:0.9rem;height:0.9rem;" aria-hidden="true"></i> <span id="notes-csv-prev-name"></span> พร้อมนำเข้า</p>
+                            </div>
+                        </div>
+                    </div>`,
+                    actions: [
+                        {id:'cancel', text:'ยกเลิก',    classes:'bg-gray-200 text-gray-800 hover:bg-gray-300'},
+                        {id:'import', text:'นำเข้า CSV', classes:'bg-cyan-600 text-white hover:bg-cyan-700'}
+                    ]
+                }, trigger);
+
+                modal.querySelector('#notes-csv-year').value  = currentYear;
+                modal.querySelector('#notes-csv-month').value = currentMonth;
+
+                let csvText = null;
+                const readFile = f => new Promise((res,rej)=>{
+                    const r=new FileReader();
+                    r.onload=e=>res(e.target.result);
+                    r.onerror=rej; r.readAsText(f, 'utf-8');
+                });
+                const setPreview = (text, name) => {
+                    csvText = text;
+                    const prev=modal.querySelector('#notes-csv-prev');
+                    modal.querySelector('#notes-csv-prev-name').textContent = name;
+                    prev.classList.remove('hidden');
+                    modal.querySelector('#notes-csv-drop').classList.add('hidden');
+                };
+
+                const drop = modal.querySelector('#notes-csv-drop');
+                const fi   = modal.querySelector('#notes-csv-file');
+                drop.addEventListener('click', ()=>fi.click());
+                drop.addEventListener('dragover', e=>{e.preventDefault(); drop.classList.add('border-cyan-400','bg-cyan-50');});
+                drop.addEventListener('dragleave', ()=>drop.classList.remove('border-cyan-400','bg-cyan-50'));
+                drop.addEventListener('drop', async e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(f){ setPreview(await readFile(f), f.name); } });
+                fi.addEventListener('change', async e=>{ const f=e.target.files[0]; if(f){ setPreview(await readFile(f), f.name); } });
+
+                modal.addEventListener('click', async e => {
+                    const a = e.target.dataset.action;
+                    if (a==='cancel'||e.target.classList.contains('modal-close-btn')) {
+                        UI_RENDERER.closeModal(trigger); return;
+                    }
+                    if (a==='import') {
+                        const year  = parseInt(modal.querySelector('#notes-csv-year').value,10);
+                        const month = parseInt(modal.querySelector('#notes-csv-month').value,10);
+                        if (!csvText) { UI_RENDERER.showNotification('กรุณาแนบไฟล์ CSV ก่อน','error'); return; }
+                        const { rows, warnings } = NOTES_BRIDGE.parseKaizenCsv(csvText);
+                        if (warnings.length) {
+                            UI_RENDERER.showNotification(`ข้าม ${warnings.length} แถวที่อ่านไม่ได้ (${warnings[0]})`, 'info');
+                        }
+                        if (!rows.length) { UI_RENDERER.showNotification('ไม่พบข้อมูลที่นำเข้าได้ในไฟล์นี้','error'); return; }
+                        const extracted = rows.map(r => ({ name: r.name, count: r.count }));
+                        UI_RENDERER.closeModal(trigger);
+                        showOcrReviewModal(extracted, year, month, trigger);
                     }
                 });
             }

@@ -99,13 +99,26 @@ Bridge Phase A — ดู "งานค้าง" ด้านล่าง)
      `STORAGE_ENGINE`/`GEMINI_AI_BRIDGE` (เหมือน closure เดิมตอนอยู่ไฟล์เดียว) ทำงานถูกต้องทั้งใน dev/build/test
      เพราะทุกจุด cross-reference อยู่ใน function body ไม่ใช่ top-level module evaluation
 
+6. **Lotus Notes Bridge Phase B + แก้บั๊ก Phase A** (2569-08-22) — ผูก CSV import เข้าเว็บแอปแทนที่การ screenshot:
+   - เพิ่ม `src/modules/notes-bridge.js` (`parseKaizenCsv`) — CSV parser แบบ quote-aware, header-driven (ไม่ใช้
+     library ภายนอก), คืน `{rows, warnings}` ไม่ throw เมื่อเจอแถวพัง
+   - เพิ่มปุ่ม "นำเข้าจาก Lotus Notes (CSV)" ใน `index.html` + handler `handleNotesCsvImportClick()` ใน `src/main.js`
+     ที่ **reuse `showOcrReviewModal` เดิมตรงๆ ไม่ fork** (ตามหลักการเดิมที่วางไว้ตั้งแต่ Phase A) — ทดสอบผ่านเบราว์เซอร์จริง
+     แล้วว่า upload CSV ตัวอย่าง → fuzzy match พนักงานถูกต้อง → บันทึกลง IndexedDB → ตาราง/กราฟ/podium อัปเดตถูกต้อง
+   - ปุ่ม OCR (Gemini) เดิมและฟีเจอร์ export standalone HTML ยืนยันแล้วว่ายังทำงานปกติ ไม่ถูกกระทบ
+   - **แก้บั๊ก Phase A**: ทดสอบ `-DryRun` จริงที่เครื่องทำงานเจอ 2 ปัญหา — (1) `The ID file is locked by another
+     process` เพราะ Lotus Notes client เปิดค้างอยู่ ยึด lock ไฟล์ ID (แก้โดยปิด Notes client ก่อนรัน script ไม่ใช่บั๊ก
+     ของ script) และ (2) `Invalid replica id` เพราะ Notes แสดง Replica ID แบบมี `:` คั่น แต่ `OpenDatabaseByReplicaID`
+     ต้องการสตริง 16 hex ติดกัน — แก้ `tools/export-kaizen-from-notes.ps1` ให้ลองทั้ง 2 รูปแบบอัตโนมัติแล้ว
+     **ยังไม่ได้รัน `-DryRun` ซ้ำเพื่อยืนยันว่าแก้ปัญหาที่ 2 ได้จริง** — ดู "งานค้าง" ด้านล่าง
+
 ## งานค้าง / สิ่งที่ควรรู้ก่อนพัฒนาต่อ
 
-- **Lotus Notes Bridge (แทน screenshot + Gemini Vision OCR)**: Phase A เสร็จแล้ว (`tools/export-kaizen-from-notes.ps1`
-  + `.cmd` wrapper — PowerShell COM automation อ่าน view "By Section" ใน database replica ID `47256F1D:0006F32C`
-  ผ่าน `Lotus.NotesSession`, export เป็น CSV UTF-8) แต่ **ยังไม่ได้ทดสอบจริงกับ Lotus Notes บนเครื่องที่ทำงาน**
-  และ **ยังไม่ได้ทำ Phase B** (ผูก CSV import เข้า `src/main.js`/`src/modules/` แทนที่ปุ่ม OCR เดิม — ดูแผนเดิมที่
-  `showOcrReviewModal` ต้องถูก reuse ไม่ใช่ fork) รอพี่ A รัน `-DryRun` ยืนยัน column mapping ก่อนเริ่ม Phase B
+- **Lotus Notes Bridge**: โค้ดฝั่ง Web App (Phase B) เสร็จและทดสอบผ่านแล้วด้วย CSV ตัวอย่างที่สร้างขึ้นเอง (ตรงตาม
+  format ที่ script ควร export) — **แต่ยังไม่เคยทดสอบกับไฟล์ CSV จริงที่ export จาก Lotus Notes จริง** เพราะ Phase A
+  (`tools/export-kaizen-from-notes.ps1`) เพิ่งแก้บั๊ก replica-ID-format ไป ยังไม่ได้รัน `-DryRun` ซ้ำที่เครื่องทำงานเพื่อ
+  ยืนยันว่าเปิด database/view ได้จริงและ column mapping ถูกต้อง — ขั้นต่อไปคือพี่ A รัน `.\export-kaizen-from-notes.cmd
+  -DryRun` อีกครั้ง (ปิด Lotus Notes client ก่อนรันเสมอ กัน "ID file is locked") แล้วเทียบ output กับหน้าจอจริง
 
 - ฟิลด์ `annualTarget` รายบุคคลในข้อมูลพนักงานยังไม่ถูกใช้งานจริง (ผู้ใช้ยืนยันว่าทุกคนใช้เป้าหมายรวมเดียวกัน)
   หากในอนาคตต้องการเปลี่ยนเป็นเป้าหมายรายคน จะต้องแก้จุดคำนวณ % ความคืบหน้าในหลายฟังก์ชัน

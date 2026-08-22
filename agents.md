@@ -32,8 +32,14 @@ src/
     ├── gemini-ai-bridge.js       — GEMINI_AI_BRIDGE
     ├── auth-provider.js          — AUTH_PROVIDER (scaffold)
     ├── cloud-sync-manager.js     — CLOUD_SYNC_MANAGER (scaffold)
-    └── ui-renderer.js            — UI_RENDERER
+    ├── ui-renderer.js            — UI_RENDERER
+    └── notes-bridge.js           — parseKaizenCsv() — CSV parser สำหรับ Lotus Notes Bridge (ดู tools/export-kaizen-from-notes.ps1)
 ```
+
+**Lotus Notes Bridge**: ปุ่ม "นำเข้าจาก Lotus Notes (CSV)" ใน `index.html` + `handleNotesCsvImportClick()` ใน
+`src/main.js` เป็นทางเลือกแทนปุ่ม OCR (Gemini) เดิมสำหรับกรณีมีไฟล์ CSV จาก `tools/export-kaizen-from-notes.ps1` —
+ทั้งสอง flow **reuse `showOcrReviewModal` ตัวเดียวกัน** (รับแค่ `extracted: {name, count}[]` ไม่สนใจที่มา) ห้าม fork
+ฟังก์ชันนี้เป็น 2 ชุด ถ้าจะปรับ UI/logic ของหน้า review ให้แก้ที่เดียวแล้วมีผลกับทั้ง 2 ทางเข้า
 
 แต่ละไฟล์ export ตัวแปรเดียวชื่อเดียวกับ module เดิม (`export const APP_CONFIG = ...`) แล้ว import กันข้ามไฟล์ตามที่ใช้จริง
 **หมายเหตุ circular import**: STATE_STORE ↔ CLOUD_SYNC_MANAGER ↔ UI_RENDERER และ STORAGE_ENGINE ↔ GEMINI_AI_BRIDGE
